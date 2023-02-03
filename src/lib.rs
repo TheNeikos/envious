@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![deny(missing_docs)]
 
 use error::EnvDeserializationError;
 use serde::de::{value::StringDeserializer, DeserializeOwned, IntoDeserializer};
@@ -35,11 +36,96 @@ impl<'de> IntoDeserializer<'de, EnvDeserializationError> for Key {
     }
 }
 
+/// Whether to use and strip a prefix, and if so which one
 pub enum Prefix<'a> {
+    /// No prefix, nothing will be stripped
     None,
+    /// The given prefix will be stripped
+    ///
+    /// ## Example
+    ///
+    /// ```rust,no_run
+    /// use serde::{Deserialize, Serialize};
+    ///
+    /// #[derive(Serialize, Deserialize, Debug)]
+    /// enum Material {
+    ///     Wood,
+    ///     Plastic,
+    /// }
+    ///
+    /// #[derive(Serialize, Deserialize, Debug)]
+    /// struct Door {
+    ///     material: Material,
+    /// }
+    ///
+    /// #[derive(Serialize, Deserialize, Debug)]
+    /// struct UpstairsConfig {
+    ///     doors: Vec<Door>,
+    /// }
+    ///
+    /// #[derive(Serialize, Deserialize, Debug)]
+    /// struct Config {
+    ///     upstairs: UpstairsConfig,
+    /// }
+    ///
+    ///# #[test]
+    ///# fn parse_from_env() {
+    ///#     let vars = [
+    ///#         ("ENVIOUS_upstairs__doors__0__material", "Wood"),
+    ///#         ("ENVIOUS_upstairs__doors__1__material", "Plastic"),
+    ///#         ("ENORMUS_upstairs__doors__2__material", "Plastic"),
+    ///#     ];
+    ///#
+    ///#     for (key, val) in vars {
+    ///#         std::env::set_var(key, val);
+    ///#     }
+    ///
+    /// let config: Config = envious::from_env(envious::Prefix::Some("ENVIOUS_")).expect("Could not read from environment");
+    ///# }
+    ///
+    /// ```
     Some(&'a str),
 }
 
+/// Parse a given `T: Deserialize` from environment variables.
+///
+/// You can control whether a given prefix should be stripped or not with [`Prefix`].
+///
+/// ## Example
+///
+/// ```rust
+///
+///# use serde::{Deserialize, Serialize};
+///#
+/// #[derive(Serialize, Deserialize, Debug)]
+/// enum StaircaseOrientation {
+///     Left,
+///     Right,
+/// }
+///
+/// #[derive(Serialize, Deserialize, Debug)]
+/// struct Config {
+///     target_temp: f32,
+///     automate_doors: bool,
+///
+///     staircase_orientation: StaircaseOrientation,
+/// }
+///#
+///# #[test]
+///# fn parse_from_env() {
+///#     let vars = [
+///#         ("target_temp", "25.0"),
+///#         ("automate_doors", "true"),
+///#         ("staircase_orientation", "Left"),
+///#     ];
+///#
+///#     for (key, val) in vars {
+///#         std::env::set_var(key, val);
+///#     }
+///#
+/// let config: Config = envious::from_env(envious::Prefix::None).expect("Could not read from environment");
+///# }
+/// ```
 pub fn from_env<T: DeserializeOwned>(
     prefix: Prefix<'_>,
 ) -> Result<T, error::EnvDeserializationError> {
