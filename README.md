@@ -46,6 +46,131 @@ your application.
 > If you want your structs to use SCREAMING_SNAKE_CASE, then be sure to use the
 > `#[serde(rename_all = "SCREAMING_SNAKE_CASE"]` annotation on all concerned structs.
 
+## How deserialization works
+
+The mapping between environment variables and the serde model is as follows:
+
+### Nested fields are seperated by `__` in their names
+
+For example, if you have the following struct:
+
+```rust
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+struct Radiator {
+    min_temp: f32,
+    max_temp: f32,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Config {
+    target_temp: f32,
+    radiator: Option<Radiator>
+}
+```
+
+You can deserialize `Config` with the following variables:
+
+```bash
+export target_temp=21.0
+export radiator__min_temp=15.0
+export radiator__max_temp=30.0
+```
+
+### Arrays are serialized using nested fields with the individual keys being discarded
+
+Arrays are represented as anonymous structs, with the 'fields' being the individual elements.
+
+A more complex example could look like this:
+
+```rust
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+enum Material {
+    Wood,
+    Plastic,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Door {
+    width: f32,
+    height: f32,
+    material: Material,
+}
+
+#[derive(Serialize, Deserialize)]
+struct House {
+    age: u32,
+    entrance_doors: Vec<Door>,
+}
+```
+
+Now, to deserialize a `House` we can set the following variables:
+
+```bash
+export age=120
+export entrance_doors__0__width=100
+export entrance_doors__0__height=100
+export entrance_doors__0__material="Wood"
+export entrance_doors__1__width=200
+export entrance_doors__1__height=120
+export entrance_doors__1__material="Plastic"
+export entrance_doors__foo__width=400
+export entrance_doors__foo__height=20
+export entrance_doors__foo__material="Plastic"
+```
+
+As you can see, the individual 'keys' of the array do not matter! The same key refers to the same object though.
+
+### Unit enums variants (without fields), are serialized from strings
+
+As you can see in the example above, the `Material` enum gets simply deserialized from the name of the variant. __Be careful about upper/lower case__ Serde expects per-default that the case is _exactly_ the same!
+
+### Complex enum variants are serialzed just like structs
+
+Per default `serde` uses external tagging for more complicated enum variants.
+Tuple enums are currently only supported with a single value
+
+To see what this means, lets take this enum as an example:
+
+```rust
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+enum Shape {
+    Rectangle { width: f32, height: f32 },
+    Circle(f32),
+    Nothing,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Config {
+    expected_shape: Shape,
+}
+```
+
+To deserialize `Config` here, we can use the following variables:
+
+```bash
+export expected_shape__Rectangle__width=50.0
+export expected_shape__Rectangle__height=10.0
+
+// OR
+
+export expected_shape__Circle=15.0
+
+// OR
+
+export expected_shape=Nothing
+```
+
+Any of these sets of variables would give you the expected outcome.
+
+__Should you change the tagging of your struct, be sure to adapt the given variables.__
+
+
 ## License
 
 `envious` is licensed under MIT _or_ Apache 2.0, as you wish.

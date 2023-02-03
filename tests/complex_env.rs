@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 enum Material {
-    Wood,
-    Plastic,
+    Wood { kind: String },
+    Plastic(f32),
+    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -23,8 +24,9 @@ struct Config {
 #[test]
 fn parse_from_env() {
     let vars = [
-        ("upstairs__doors__0__material", "Wood"),
-        ("upstairs__doors__1__material", "Plastic"),
+        ("upstairs__doors__0__material__Wood__kind", "Mahagony"),
+        ("upstairs__doors__1__material__Plastic", "25"),
+        ("upstairs__doors__2__material", "Unknown"),
     ];
 
     for (key, val) in vars {
