@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use error::EnvDeserializationError;
 use serde::de::{value::StringDeserializer, DeserializeOwned, IntoDeserializer};
 use value::Value;
