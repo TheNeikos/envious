@@ -46,11 +46,31 @@ your application.
 > If you want your structs to use SCREAMING_SNAKE_CASE, then be sure to use the
 > `#[serde(rename_all = "SCREAMING_SNAKE_CASE"]` annotation on all concerned structs.
 
+## Getting Started
+
+To use `envious` simply add it to your `Cargo.toml` with:
+
+```bash
+cargo add envious
+```
+
+and deserialize from your environment with `envious::from_env`!
+
+
+⚠️ **Current Shortcomings**
+
+- Tuple Enum Variants can currently _not_ be longer than one element!
+- Ordering of arrays is highly sensitive to environment order
+    - No ordering is currently done, and the ordering depends on how the
+      operating system propagates variables
+
+
+
 ## How deserialization works
 
 The mapping between environment variables and the serde model is as follows:
 
-### Nested fields are seperated by `__` in their names
+#### Nested fields are seperated by `__` in their names
 
 For example, if you have the following struct:
 
@@ -78,7 +98,7 @@ export radiator__min_temp=15.0
 export radiator__max_temp=30.0
 ```
 
-### Arrays are serialized using nested fields with the individual keys being discarded
+#### Arrays are serialized using nested fields with the individual keys being discarded
 
 Arrays are represented as anonymous structs, with the 'fields' being the individual elements.
 
@@ -124,14 +144,14 @@ export entrance_doors__foo__material="Plastic"
 
 As you can see, the individual 'keys' of the array do not matter! The same key refers to the same object though.
 
-### Unit enums variants (without fields), are serialized from strings
+#### Unit enums variants (without fields), are serialized from strings
 
 As you can see in the example above, the `Material` enum gets simply deserialized from the name of the variant. __Be careful about upper/lower case__ Serde expects per-default that the case is _exactly_ the same!
 
-### Complex enum variants are serialzed just like structs
+#### Complex enum variants are serialzed just like structs
 
 Per default `serde` uses external tagging for more complicated enum variants.
-Tuple enums are currently only supported with a single value
+Tuple enums are currently only supported with a single value.
 
 To see what this means, lets take this enum as an example:
 
