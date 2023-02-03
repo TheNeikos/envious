@@ -321,9 +321,6 @@ mod tests {
 
         let actual = Value::from_list(input).unwrap();
 
-        dbg!(&expected);
-        dbg!(&actual);
-
         assert_eq!(actual, expected);
     }
 }
