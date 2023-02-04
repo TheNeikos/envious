@@ -145,7 +145,7 @@ fn from_primitive<T: DeserializeOwned, I: Iterator<Item = (Key, String)>>(
     values: I,
 ) -> Result<T, error::EnvDeserializationError> {
     let deserializer =
-        Value::from_list(values.map(|(key, val)| (key, Value::Simple(val))).collect()).unwrap();
+        Value::from_list(values.map(|(key, val)| (key, Value::Simple(val))).collect())?;
     T::deserialize(deserializer)
 }
 

@@ -14,15 +14,21 @@ pub(crate) enum Value {
 const SEPERATOR: &str = "__";
 
 impl Value {
-    fn insert_at(&mut self, path: &[&str], value: Value) -> Result<(), ()> {
+    fn insert_at(&mut self, path: &[&str], value: Value) -> Result<(), EnvDeserializationError> {
         match self {
-            Value::Simple(_) => Err(()),
+            Value::Simple(_) => Err(EnvDeserializationError::InvalidEnvNesting(
+                path.iter().map(|s| s.to_string()).collect(),
+            )),
             Value::Map(values) => {
                 let val = if let Some((_key, val)) =
                     values.iter_mut().find(|(key, _)| key.as_ref() == path[0])
                 {
                     match val {
-                        Value::Simple(_) => return Err(()),
+                        Value::Simple(_) => {
+                            return Err(EnvDeserializationError::InvalidEnvNesting(
+                                path.iter().map(|s| s.to_string()).collect(),
+                            ))
+                        }
                         Value::Map(_) => val,
                     }
                 } else {
@@ -37,7 +43,11 @@ impl Value {
                     val.insert_at(path, value)
                 } else {
                     match val {
-                        Value::Simple(_) => return Err(()),
+                        Value::Simple(_) => {
+                            return Err(EnvDeserializationError::InvalidEnvNesting(
+                                path.iter().map(|s| s.to_string()).collect(),
+                            ))
+                        }
                         Value::Map(values) => values.push((Key::new(path[0].to_string()), value)),
                     }
                     Ok(())
@@ -46,7 +56,7 @@ impl Value {
         }
     }
 
-    pub(crate) fn from_list(list: Vec<(Key, Value)>) -> Result<Value, ()> {
+    pub(crate) fn from_list(list: Vec<(Key, Value)>) -> Result<Value, EnvDeserializationError> {
         let mut base = Value::Map(vec![]);
 
         for (key, value) in list {

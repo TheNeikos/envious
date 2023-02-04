@@ -6,6 +6,8 @@ pub enum EnvDeserializationError {
     UnsupportedValue,
     #[error("Tried to nest values while a simple value was expected")]
     InvalidNestedValues,
+    #[error("Invalid nesting detected for paths ending in: {:?}", .0)]
+    InvalidEnvNesting(Vec<String>),
 }
 
 impl serde::de::Error for EnvDeserializationError {
