@@ -46,6 +46,10 @@ your application.
 > If you want your structs to use SCREAMING_SNAKE_CASE, then be sure to use the
 > `#[serde(rename_all = "SCREAMING_SNAKE_CASE"]` annotation on all concerned structs.
 
+`envious` also supports the ability to only take in prefixed environment
+variables by passing in a `envious::Prefix::Some("<prefix string>")`. This will
+strip it before processing them further.
+
 ## Getting Started
 
 To use `envious` simply add it to your `Cargo.toml` with:
