@@ -67,6 +67,8 @@ and deserialize from your environment with `envious::from_env`!
 - Ordering of arrays is highly sensitive to environment order
     - No ordering is currently done, and the ordering depends on how the
       operating system propagates variables
+- Deserializing where a `null` in other formats is required is currently not possible
+    - See [#12](https://github.com/TheNeikos/envious/issues/12) for more details
 
 
 
