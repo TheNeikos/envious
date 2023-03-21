@@ -131,7 +131,49 @@ pub fn from_env<T: DeserializeOwned>(
 ) -> Result<T, error::EnvDeserializationError> {
     let env_values = std::env::vars();
 
-    from_primitive(env_values.flat_map(|(key, value)| {
+    from_iter(env_values, prefix)
+}
+
+/// Parse a given `T: Deserialize` from anything that can be turned into an iterator.
+///
+/// You can control whether a given prefix should be stripped or not with [`Prefix`].
+///
+/// This function is useful for static deployments or for testing
+///
+/// ## Example
+///
+/// ```rust
+///
+///# use serde::{Deserialize, Serialize};
+///#
+/// #[derive(Serialize, Deserialize, Debug)]
+/// enum StaircaseOrientation {
+///     Left,
+///     Right,
+/// }
+///
+/// #[derive(Serialize, Deserialize, Debug)]
+/// struct Config {
+///     target_temp: f32,
+///     automate_doors: bool,
+///
+///     staircase_orientation: StaircaseOrientation,
+/// }
+///
+/// let vars = [
+///     (String::from("target_temp"), String::from("25.0")),
+///     (String::from("automate_doors"), String::from("true")),
+///     (String::from("staircase_orientation"), String::from("Left")),
+/// ];
+///
+/// let config: Config = envious::from_iter(vars, envious::Prefix::None).expect("Could not read from environment");
+/// ```
+pub fn from_iter<T: DeserializeOwned, I: IntoIterator<Item = (String, String)>>(
+    iter: I,
+    prefix: Prefix<'_>,
+) -> Result<T, error::EnvDeserializationError> {
+    let values = iter.into_iter();
+    from_primitive(values.flat_map(|(key, value)| {
         if let Prefix::Some(prefix) = prefix {
             let stripped_key = key.strip_prefix(prefix).map(|s| s.to_string())?;
             Some((Key::new(stripped_key), value))
