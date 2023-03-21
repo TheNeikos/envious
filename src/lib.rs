@@ -87,6 +87,28 @@ pub enum Prefix<'a> {
     Some(&'a str),
 }
 
+impl<'a> From<Option<&'a str>> for Prefix<'a> {
+    /// Allows to easily convert from a `Option` to a `Prefix`
+    ///
+    /// For easily readability it should primarily used as `Prefix::from`
+    ///
+    /// ```rust,no_run
+    /// # use serde::{Deserialize, Serialize};
+    /// # #[derive(Serialize, Deserialize, Debug)]
+    /// # struct Config {
+    /// #     foobar: f32
+    /// # }
+    /// let maybe_prefix = Some("ENVIOUS_");
+    /// let value: Config = envious::from_env(envious::Prefix::from(maybe_prefix)).expect("Could not read from environment");
+    /// ```
+    fn from(value: Option<&'a str>) -> Self {
+        match value {
+            Some(v) => Prefix::Some(v),
+            None => Prefix::None,
+        }
+    }
+}
+
 /// Parse a given `T: Deserialize` from environment variables.
 ///
 /// You can control whether a given prefix should be stripped or not with [`Prefix`].
