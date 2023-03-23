@@ -1,6 +1,6 @@
 use serde::de::DeserializeOwned;
 
-use crate::{error, Key};
+use crate::error;
 
 /// Temp
 #[derive(Debug, Default)]
@@ -40,9 +40,9 @@ impl<'a> Config<'a> {
         super::from_primitive(values.flat_map(|(key, value)| {
             if let Some(prefix) = self.prefix {
                 let stripped_key = key.strip_prefix(prefix)?.to_owned();
-                Some((Key::new(stripped_key), value))
+                Some((stripped_key, value))
             } else {
-                Some((Key::new(key), value))
+                Some((key, value))
             }
         }))
     }

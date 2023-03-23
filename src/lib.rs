@@ -1,8 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![deny(missing_docs)]
 
-use error::EnvDeserializationError;
-use serde::de::{value::StringDeserializer, DeserializeOwned, IntoDeserializer};
+use serde::de::DeserializeOwned;
 use value::Value;
 
 mod config;
@@ -10,35 +9,6 @@ mod error;
 mod value;
 
 pub use config::Config;
-
-#[derive(Debug, PartialEq)]
-struct Key {
-    original: String,
-    current: String,
-}
-
-impl AsRef<str> for Key {
-    fn as_ref(&self) -> &str {
-        &self.current
-    }
-}
-
-impl Key {
-    fn new(original: impl Into<String>) -> Self {
-        let original = original.into();
-        Self {
-            current: original.clone(),
-            original,
-        }
-    }
-}
-
-impl<'de> IntoDeserializer<'de, EnvDeserializationError> for Key {
-    type Deserializer = StringDeserializer<EnvDeserializationError>;
-    fn into_deserializer(self) -> Self::Deserializer {
-        self.current.into_deserializer()
-    }
-}
 
 /// Whether to use and strip a prefix, and if so which one
 pub enum Prefix<'a> {
@@ -211,7 +181,7 @@ pub fn from_iter<T: DeserializeOwned, I: IntoIterator<Item = (String, String)>>(
     config.from_iter(iter)
 }
 
-fn from_primitive<T: DeserializeOwned, I: Iterator<Item = (Key, String)>>(
+fn from_primitive<T: DeserializeOwned, I: Iterator<Item = (String, String)>>(
     values: I,
 ) -> Result<T, error::EnvDeserializationError> {
     let deserializer = Value::from_list(values.map(|(key, val)| (key, Value::Simple(val))))?;

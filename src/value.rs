@@ -3,12 +3,11 @@ use serde::de::IntoDeserializer;
 use serde::Deserializer;
 
 use crate::error::EnvDeserializationError;
-use crate::Key;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Value {
     Simple(String),
-    Map(Vec<(Key, Value)>),
+    Map(Vec<(String, Value)>),
 }
 
 const SEPERATOR: &str = "__";
@@ -21,7 +20,7 @@ impl Value {
             )),
             Value::Map(values) => {
                 let val = if let Some((_key, val)) =
-                    values.iter_mut().find(|(key, _)| key.as_ref() == path[0])
+                    values.iter_mut().find(|(key, _)| key == path[0])
                 {
                     match val {
                         Value::Simple(_) => {
@@ -33,7 +32,7 @@ impl Value {
                     }
                 } else {
                     let val = Value::Map(vec![]);
-                    values.push((Key::new(path[0].to_string()), val));
+                    values.push((String::from(path[0].to_string()), val));
                     &mut values.last_mut().unwrap().1
                 };
 
@@ -48,7 +47,7 @@ impl Value {
                                 path.iter().map(|s| s.to_string()).collect(),
                             ))
                         }
-                        Value::Map(values) => values.push((Key::new(path[0].to_string()), value)),
+                        Value::Map(values) => values.push((String::from(path[0].to_string()), value)),
                     }
                     Ok(())
                 }
@@ -57,12 +56,12 @@ impl Value {
     }
 
     pub(crate) fn from_list(
-        list: impl IntoIterator<Item = (Key, Self)>,
+        list: impl IntoIterator<Item = (String, Self)>,
     ) -> Result<Self, EnvDeserializationError> {
         let mut base = Value::Map(vec![]);
 
         for (key, value) in list.into_iter() {
-            let path = key.original.split(SEPERATOR).collect::<Vec<_>>();
+            let path = key.split(SEPERATOR).collect::<Vec<_>>();
 
             if path.len() == 1 {
                 if let Value::Map(base) = &mut base {
@@ -215,8 +214,6 @@ impl<'de> Deserializer<'de> for Value {
 
 #[cfg(test)]
 mod tests {
-    use crate::Key;
-
     use super::Value;
     use serde::Deserialize;
 
@@ -249,9 +246,9 @@ mod tests {
         assert_eq!(
             Ok(vec![125u32, 200, 300]),
             <_>::deserialize(Value::Map(vec![
-                (Key::new(""), Value::simple("125")),
-                (Key::new(""), Value::simple("200")),
-                (Key::new(""), Value::simple("300"))
+                (String::from(""), Value::simple("125")),
+                (String::from(""), Value::simple("200")),
+                (String::from(""), Value::simple("300"))
             ]))
         );
     }
@@ -263,7 +260,7 @@ mod tests {
                 String::from("foo"),
                 123
             )])),
-            <_>::deserialize(Value::Map(vec![(Key::new("foo"), Value::simple("123")),]))
+            <_>::deserialize(Value::Map(vec![(String::from("foo"), Value::simple("123")),]))
         );
 
         assert_eq!(
@@ -272,8 +269,8 @@ mod tests {
                 std::collections::HashMap::from([(String::from("bar"), 123)]),
             )])),
             <_>::deserialize(Value::Map(vec![(
-                Key::new("foo"),
-                Value::Map(vec![(Key::new("bar"), Value::simple("123")),])
+                String::from("foo"),
+                Value::Map(vec![(String::from("bar"), Value::simple("123")),])
             ),]))
         );
     }
@@ -281,20 +278,20 @@ mod tests {
     #[test]
     fn convert_list_of_key_vals_to_tree() {
         let input = vec![
-            (Key::new("FOO"), Value::simple("bar")),
-            (Key::new("BAZ"), Value::simple("124")),
-            (Key::new("NESTED__FOO"), Value::simple("true")),
-            (Key::new("NESTED__BAZ"), Value::simple("Hello")),
+            (String::from("FOO"), Value::simple("bar")),
+            (String::from("BAZ"), Value::simple("124")),
+            (String::from("NESTED__FOO"), Value::simple("true")),
+            (String::from("NESTED__BAZ"), Value::simple("Hello")),
         ];
 
         let expected = Value::Map(vec![
-            (Key::new("FOO"), Value::simple("bar")),
-            (Key::new("BAZ"), Value::simple("124")),
+            (String::from("FOO"), Value::simple("bar")),
+            (String::from("BAZ"), Value::simple("124")),
             (
-                Key::new("NESTED"),
+                String::from("NESTED"),
                 Value::Map(vec![
-                    (Key::new("FOO"), Value::simple("true")),
-                    (Key::new("BAZ"), Value::simple("Hello")),
+                    (String::from("FOO"), Value::simple("true")),
+                    (String::from("BAZ"), Value::simple("Hello")),
                 ]),
             ),
         ]);
