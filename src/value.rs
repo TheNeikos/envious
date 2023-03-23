@@ -56,12 +56,13 @@ impl Value {
         }
     }
 
-    pub(crate) fn from_list(list: Vec<(Key, Value)>) -> Result<Value, EnvDeserializationError> {
+    pub(crate) fn from_list(
+        list: impl IntoIterator<Item = (Key, Self)>,
+    ) -> Result<Self, EnvDeserializationError> {
         let mut base = Value::Map(vec![]);
 
-        for (key, value) in list {
-            let key_str = key.as_ref();
-            let path = key_str.split(SEPERATOR).collect::<Vec<_>>();
+        for (key, value) in list.into_iter() {
+            let path = key.original.split(SEPERATOR).collect::<Vec<_>>();
 
             if path.len() == 1 {
                 if let Value::Map(base) = &mut base {
@@ -219,39 +220,38 @@ mod tests {
     use super::Value;
     use serde::Deserialize;
 
+
+    impl Value {
+        /// Used to simplify the creation of a `Simple` variant of [`Value`].
+        fn simple(s: impl Into<String>) -> Self {
+            Self::Simple(s.into())
+        }
+    }
+
     #[test]
     fn simple_values() {
-        assert_eq!(
-            Ok(true),
-            <_>::deserialize(Value::Simple(String::from("true")))
-        );
+        assert_eq!(Ok(true), <_>::deserialize(Value::simple("true")));
 
-        assert_eq!(
-            Ok(25u32),
-            <_>::deserialize(Value::Simple(String::from("25")))
-        );
+        assert_eq!(Ok(25u32), <_>::deserialize(Value::simple("25")));
         assert_eq!(
             Ok(String::from("foobar")),
-            <_>::deserialize(Value::Simple(String::from("foobar")))
+            <_>::deserialize(Value::simple("foobar"))
         );
         assert_eq!(
             Ok(Some(String::from("foobar"))),
-            <_>::deserialize(Value::Simple(String::from("foobar")))
+            <_>::deserialize(Value::simple("foobar"))
         );
     }
 
     #[test]
     fn simple_sequence() {
-        assert_eq!(
-            Ok(vec![125u32]),
-            <_>::deserialize(Value::Simple(String::from("125")))
-        );
+        assert_eq!(Ok(vec![125u32]), <_>::deserialize(Value::simple("125")));
         assert_eq!(
             Ok(vec![125u32, 200, 300]),
             <_>::deserialize(Value::Map(vec![
-                (Key::new(String::new()), Value::Simple(String::from("125"))),
-                (Key::new(String::new()), Value::Simple(String::from("200"))),
-                (Key::new(String::new()), Value::Simple(String::from("300")))
+                (Key::new(""), Value::simple("125")),
+                (Key::new(""), Value::simple("200")),
+                (Key::new(""), Value::simple("300"))
             ]))
         );
     }
@@ -263,10 +263,7 @@ mod tests {
                 String::from("foo"),
                 123
             )])),
-            <_>::deserialize(Value::Map(vec![(
-                Key::new(String::from("foo")),
-                Value::Simple(String::from("123"))
-            ),]))
+            <_>::deserialize(Value::Map(vec![(Key::new("foo"), Value::simple("123")),]))
         );
 
         assert_eq!(
@@ -275,11 +272,8 @@ mod tests {
                 std::collections::HashMap::from([(String::from("bar"), 123)]),
             )])),
             <_>::deserialize(Value::Map(vec![(
-                Key::new(String::from("foo")),
-                Value::Map(vec![(
-                    Key::new(String::from("bar")),
-                    Value::Simple(String::from("123"))
-                ),])
+                Key::new("foo"),
+                Value::Map(vec![(Key::new("bar"), Value::simple("123")),])
             ),]))
         );
     }
@@ -287,44 +281,20 @@ mod tests {
     #[test]
     fn convert_list_of_key_vals_to_tree() {
         let input = vec![
-            (
-                Key::new(String::from("FOO")),
-                Value::Simple(String::from("bar")),
-            ),
-            (
-                Key::new(String::from("BAZ")),
-                Value::Simple(String::from("124")),
-            ),
-            (
-                Key::new(String::from("NESTED__FOO")),
-                Value::Simple(String::from("true")),
-            ),
-            (
-                Key::new(String::from("NESTED__BAZ")),
-                Value::Simple(String::from("Hello")),
-            ),
+            (Key::new("FOO"), Value::simple("bar")),
+            (Key::new("BAZ"), Value::simple("124")),
+            (Key::new("NESTED__FOO"), Value::simple("true")),
+            (Key::new("NESTED__BAZ"), Value::simple("Hello")),
         ];
 
         let expected = Value::Map(vec![
+            (Key::new("FOO"), Value::simple("bar")),
+            (Key::new("BAZ"), Value::simple("124")),
             (
-                Key::new(String::from("FOO")),
-                Value::Simple(String::from("bar")),
-            ),
-            (
-                Key::new(String::from("BAZ")),
-                Value::Simple(String::from("124")),
-            ),
-            (
-                Key::new(String::from("NESTED")),
+                Key::new("NESTED"),
                 Value::Map(vec![
-                    (
-                        Key::new(String::from("FOO")),
-                        Value::Simple(String::from("true")),
-                    ),
-                    (
-                        Key::new(String::from("BAZ")),
-                        Value::Simple(String::from("Hello")),
-                    ),
+                    (Key::new("FOO"), Value::simple("true")),
+                    (Key::new("BAZ"), Value::simple("Hello")),
                 ]),
             ),
         ]);
