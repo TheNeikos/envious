@@ -12,6 +12,11 @@ pub use config::Config;
 use value::Parser;
 
 /// Whether to use and strip a prefix, and if so which one
+#[derive(Debug, Copy, Clone)]
+#[deprecated(
+    since = "0.3.0",
+    note = "please use `Config` and its `with_prefix` method instead"
+)]
 pub enum Prefix<'a> {
     /// No prefix, nothing will be stripped
     None,
@@ -62,6 +67,7 @@ pub enum Prefix<'a> {
     Some(&'a str),
 }
 
+#[allow(deprecated)]
 impl<'a> From<Option<&'a str>> for Prefix<'a> {
     /// Allows to easily convert from a `Option` to a `Prefix`
     ///
@@ -77,10 +83,7 @@ impl<'a> From<Option<&'a str>> for Prefix<'a> {
     /// let value: Config = envious::from_env(envious::Prefix::from(maybe_prefix)).expect("Could not read from environment");
     /// ```
     fn from(value: Option<&'a str>) -> Self {
-        match value {
-            Some(v) => Prefix::Some(v),
-            None => Prefix::None,
-        }
+        value.map_or(Prefix::None, Prefix::Some)
     }
 }
 
@@ -123,6 +126,11 @@ impl<'a> From<Option<&'a str>> for Prefix<'a> {
 /// let config: Config = envious::from_env(envious::Prefix::None).expect("Could not read from environment");
 ///# }
 /// ```
+#[deprecated(
+    since = "0.3.0",
+    note = "please use `Config` and its `from_env` method instead"
+)]
+#[allow(deprecated)]
 pub fn from_env<T: DeserializeOwned>(
     prefix: Prefix<'_>,
 ) -> Result<T, error::EnvDeserializationError> {
@@ -169,6 +177,11 @@ pub fn from_env<T: DeserializeOwned>(
 ///
 /// let config: Config = envious::from_iter(vars, envious::Prefix::None).expect("Could not read from environment");
 /// ```
+#[deprecated(
+    since = "0.3.0",
+    note = "please use `Config` and its `from_iter` method instead"
+)]
+#[allow(deprecated)]
 pub fn from_iter<T: DeserializeOwned, I: IntoIterator<Item = (String, String)>>(
     iter: I,
     prefix: Prefix<'_>,

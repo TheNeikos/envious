@@ -1,12 +1,13 @@
-use serde::{Deserialize, Serialize};
+#![allow(dead_code)]
+use serde::Deserialize;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 enum StaircaseOrientation {
     Left,
     Right,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct Config {
     target_temp: f32,
     automate_doors: bool,
@@ -17,15 +18,11 @@ struct Config {
 #[test]
 fn parse_from_env() {
     let vars = [
-        ("target_temp", "25.0"),
-        ("automate_doors", "true"),
-        ("staircase_orientation", "Left"),
+        ("target_temp", Some("25.0")),
+        ("automate_doors", Some("true")),
+        ("staircase_orientation", Some("Left")),
     ];
 
-    for (key, val) in vars {
-        std::env::set_var(key, val);
-    }
-
-    let config: Config = envious::from_env(envious::Prefix::None).unwrap();
+    let config: Config = temp_env::with_vars(vars, || envious::Config::new().from_env().unwrap());
     println!("{:#?}", config);
 }

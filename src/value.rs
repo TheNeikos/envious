@@ -6,12 +6,12 @@ use crate::error::EnvDeserializationError;
 use crate::Config;
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum Value {
+pub enum Value {
     Simple(String),
     Map(Vec<(String, Value)>),
 }
 
-pub(crate) struct Parser<'a> {
+pub struct Parser<'a> {
     pub config: &'a Config<'a>,
     pub current: Value,
 }
@@ -20,26 +20,26 @@ impl Value {
     pub(crate) fn insert_at(
         &mut self,
         path: &[&str],
-        value: Value,
+        value: Self,
     ) -> Result<(), EnvDeserializationError> {
         match self {
-            Value::Simple(_) => Err(EnvDeserializationError::InvalidEnvNesting(
+            Self::Simple(_) => Err(EnvDeserializationError::InvalidEnvNesting(
                 path.iter().map(|s| s.to_string()).collect(),
             )),
-            Value::Map(values) => {
+            Self::Map(values) => {
                 let val =
                     if let Some((_key, val)) = values.iter_mut().find(|(key, _)| key == path[0]) {
                         match val {
-                            Value::Simple(_) => {
+                            Self::Simple(_) => {
                                 return Err(EnvDeserializationError::InvalidEnvNesting(
                                     path.iter().map(|s| s.to_string()).collect(),
                                 ))
                             }
-                            Value::Map(_) => val,
+                            Self::Map(_) => val,
                         }
                     } else {
-                        let val = Value::Map(vec![]);
-                        values.push((String::from(path[0].to_string()), val));
+                        let val = Self::Map(vec![]);
+                        values.push((String::from(path[0]), val));
                         &mut values.last_mut().unwrap().1
                     };
 
@@ -49,13 +49,13 @@ impl Value {
                     val.insert_at(path, value)
                 } else {
                     match val {
-                        Value::Simple(_) => {
+                        Self::Simple(_) => {
                             return Err(EnvDeserializationError::InvalidEnvNesting(
                                 path.iter().map(|s| s.to_string()).collect(),
-                            ))
+                            ));
                         }
-                        Value::Map(values) => {
-                            values.push((String::from(path[0].to_string()), value))
+                        Self::Map(values) => {
+                            values.push((String::from(path[0]), value));
                         }
                     }
                     Ok(())

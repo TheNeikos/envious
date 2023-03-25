@@ -1,10 +1,8 @@
-
 ![envious cover image](./cover.png)
 
 [![Bors enabled](https://bors.tech/images/badge_small.svg)](https://app.bors.tech/repositories/61862)
 [![Crates.io](https://img.shields.io/crates/v/envious.svg)](https://crates.io/crates/envious)
 [![Docs.rs](https://docs.rs/envious/badge.svg)](https://docs.rs/envious)
-
 
 **`envious` allows you to deserialize your serde enabled structs from
 environment variables.**
@@ -28,27 +26,23 @@ struct Config {
     staircase_orientation: StaircaseOrientation,
 }
 
-let config: Config = envious::from_env(envious::Prefix::None).expect("Could not deserialize from env");
+let config: Config = envious::Config::new().from_env().expect("Could not deserialize from env");
 ```
 
 With the following environment variables:
 
 ```bash
-EXPORT target_temp=25.0
-EXPORT automate_doors=true
-EXPORT staircase_orientation=Left
+export target_temp=25.0
+export automate_doors=true
+export staircase_orientation=Left
 ```
 
 it will parse it from the environment and give you a Rust struct you can use in
 your application.
 
-> _Note:_ The environment variables **are** case sensitive! This is due to how `serde` works internally. 
-> If you want your structs to use SCREAMING_SNAKE_CASE, then be sure to use the
-> `#[serde(rename_all = "SCREAMING_SNAKE_CASE"]` annotation on all concerned structs.
+> _Note:_ The environment variables **are** case sensitive by default! This can be modified using the [`Config::case_sensitive`] method.
 
-`envious` also supports the ability to only take in prefixed environment
-variables by passing in a `envious::Prefix::Some("<prefix string>")`. This will
-strip it before processing them further.
+`envious` also supports the ability to only take in prefixed environment variables via the [`Config::with_prefix`] method. This will strip it before processing them further.
 
 ## Getting Started
 
@@ -58,27 +52,24 @@ To use `envious` simply add it to your `Cargo.toml` with:
 cargo add envious
 ```
 
-and deserialize from your environment with `envious::from_env`!
-
+and deserialize from your environment with [`Config::new`] and then [`Config::from_env`]!
 
 ⚠️ **Current Shortcomings**
 
 - Tuple Enum Variants can currently _not_ be longer than one element!
 - Ordering of arrays is highly sensitive to environment order
-    - No ordering is currently done, and the ordering depends on how the
-      operating system propagates variables
+  - No ordering is currently done, and the ordering depends on how the
+    operating system propagates variables
 - Deserializing where a `null` in other formats is required is currently not possible
-    - See [#12](https://github.com/TheNeikos/envious/issues/12) for more details
-
-
+  - See [#12](https://github.com/TheNeikos/envious/issues/12) for more details
 
 ## How deserialization works
 
 The mapping between environment variables and the serde model is as follows:
 
-#### Nested fields are seperated by `__` in their names
+#### Nested fields are seperated by a provided separator.
 
-For example, if you have the following struct:
+This can be modified by using the [`Config::with_separator`] and defaults to `__` (double underscore). For example, if you have the following struct:
 
 ```rust
 use serde::{Deserialize, Serialize};
@@ -152,7 +143,7 @@ As you can see, the individual 'keys' of the array do not matter! The same key r
 
 #### Unit enums variants (without fields), are serialized from strings
 
-As you can see in the example above, the `Material` enum gets simply deserialized from the name of the variant. __Be careful about upper/lower case__ Serde expects per-default that the case is _exactly_ the same!
+As you can see in the example above, the `Material` enum gets simply deserialized from the name of the variant. **Be careful about upper/lower case** if you have not configured case insensitivity via [`Config::case_sensitive`]. By default Serde expects that the case is _exactly_ the same!
 
 #### Complex enum variants are serialzed just like structs
 
@@ -194,8 +185,7 @@ export expected_shape=Nothing
 
 Any of these sets of variables would give you the expected outcome.
 
-__Should you change the tagging of your struct, be sure to adapt the given variables.__
-
+**Should you change the tagging of your struct, be sure to adapt the given variables.**
 
 ## License
 

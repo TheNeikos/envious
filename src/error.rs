@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, thiserror::Error)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum EnvDeserializationError {
     #[error("An error occured during deserialization: {}", .0)]
     GenericDeserialization(String),
@@ -15,6 +15,6 @@ impl serde::de::Error for EnvDeserializationError {
     where
         T: std::fmt::Display,
     {
-        EnvDeserializationError::GenericDeserialization(msg.to_string())
+        Self::GenericDeserialization(msg.to_string())
     }
 }

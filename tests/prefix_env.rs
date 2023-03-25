@@ -1,22 +1,23 @@
-use serde::{Deserialize, Serialize};
+#![allow(dead_code)]
+use serde::Deserialize;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 enum Material {
     Wood,
     Plastic,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct Door {
     material: Material,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct UpstairsConfig {
     doors: Vec<Door>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct Config {
     upstairs: UpstairsConfig,
 }
@@ -24,15 +25,14 @@ struct Config {
 #[test]
 fn parse_from_env() {
     let vars = [
-        ("ENVIOUS_upstairs__doors__0__material", "Wood"),
-        ("ENVIOUS_upstairs__doors__1__material", "Plastic"),
-        ("ENORMUS_upstairs__doors__2__material", "Plastic"),
+        ("ENVIOUS_upstairs__doors__0__material", Some("Wood")),
+        ("ENVIOUS_upstairs__doors__1__material", Some("Plastic")),
+        ("ENORMUS_upstairs__doors__2__material", Some("Plastic")),
     ];
 
-    for (key, val) in vars {
-        std::env::set_var(key, val);
-    }
+    let config: Config = temp_env::with_vars(vars, || {
+        envious::Config::new().with_prefix("ENVIOUS_").from_env().unwrap()
+    });
 
-    let config: Config = envious::from_env(envious::Prefix::Some("ENVIOUS_")).unwrap();
     println!("{:#?}", config);
 }
