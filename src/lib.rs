@@ -9,6 +9,7 @@ mod error;
 mod value;
 
 pub use config::Config;
+use value::Parser;
 
 /// Whether to use and strip a prefix, and if so which one
 pub enum Prefix<'a> {
@@ -125,7 +126,7 @@ impl<'a> From<Option<&'a str>> for Prefix<'a> {
 pub fn from_env<T: DeserializeOwned>(
     prefix: Prefix<'_>,
 ) -> Result<T, error::EnvDeserializationError> {
-    let mut config = Config::default();
+    let mut config = Config::new();
 
     if let Prefix::Some(prefix) = prefix {
         config.with_prefix(prefix);
@@ -172,20 +173,13 @@ pub fn from_iter<T: DeserializeOwned, I: IntoIterator<Item = (String, String)>>(
     iter: I,
     prefix: Prefix<'_>,
 ) -> Result<T, error::EnvDeserializationError> {
-    let mut config = Config::default();
+    let mut config = Config::new();
 
     if let Prefix::Some(prefix) = prefix {
         config.with_prefix(prefix);
     }
 
     config.from_iter(iter)
-}
-
-fn from_primitive<T: DeserializeOwned, I: Iterator<Item = (String, String)>>(
-    values: I,
-) -> Result<T, error::EnvDeserializationError> {
-    let deserializer = Value::from_list(values.map(|(key, val)| (key, Value::Simple(val))))?;
-    T::deserialize(deserializer)
 }
 
 #[cfg(test)]
@@ -205,7 +199,7 @@ mod test {
 
         let expected = Simple { allowed: true };
 
-        let actual: Simple = Config::default()
+        let actual: Simple = Config::new()
             .from_iter([(String::from("allowed"), "true")].into_iter())
             .unwrap();
 
@@ -239,7 +233,7 @@ mod test {
             },
         };
 
-        let actual: Nested = Config::default()
+        let actual: Nested = Config::new()
             .from_iter(
                 [
                     ("temp", "15"),
@@ -265,7 +259,7 @@ mod test {
             allowed_simply: true,
         };
 
-        let actual: Simple = Config::default()
+        let actual: Simple = Config::new()
             .from_iter([("ALLOWED-SIMPLY", String::from("true"))].into_iter())
             .unwrap();
 
@@ -287,7 +281,7 @@ mod test {
 
         let expected = SimpleEnum { simple: Simple::No };
 
-        let actual: SimpleEnum = Config::default()
+        let actual: SimpleEnum = Config::new()
             .from_iter([("simple", Cow::Borrowed("No"))].into_iter())
             .unwrap();
 
@@ -314,7 +308,7 @@ mod test {
             },
         };
 
-        let actual: ComplexEnum = Config::default()
+        let actual: ComplexEnum = Config::new()
             .from_iter(
                 [
                     ("complex__Access__password", "hunter2"),

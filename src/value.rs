@@ -2,6 +2,7 @@ use serde::de::value::{MapAccessDeserializer, MapDeserializer, SeqDeserializer};
 use serde::de::IntoDeserializer;
 use serde::Deserializer;
 
+use crate::Config;
 use crate::error::EnvDeserializationError;
 
 #[derive(Debug, PartialEq)]
@@ -10,10 +11,13 @@ pub(crate) enum Value {
     Map(Vec<(String, Value)>),
 }
 
-const SEPERATOR: &str = "__";
+pub(crate) struct Parser<'a> {
+    pub config: &'a Config<'a>,
+    pub current: Value,
+}
 
 impl Value {
-    fn insert_at(&mut self, path: &[&str], value: Value) -> Result<(), EnvDeserializationError> {
+    pub(crate) fn insert_at(&mut self, path: &[&str], value: Value) -> Result<(), EnvDeserializationError> {
         match self {
             Value::Simple(_) => Err(EnvDeserializationError::InvalidEnvNesting(
                 path.iter().map(|s| s.to_string()).collect(),
@@ -54,28 +58,6 @@ impl Value {
             }
         }
     }
-
-    pub(crate) fn from_list(
-        list: impl IntoIterator<Item = (String, Self)>,
-    ) -> Result<Self, EnvDeserializationError> {
-        let mut base = Value::Map(vec![]);
-
-        for (key, value) in list.into_iter() {
-            let path = key.split(SEPERATOR).collect::<Vec<_>>();
-
-            if path.len() == 1 {
-                if let Value::Map(base) = &mut base {
-                    base.push((key, value));
-                } else {
-                    unreachable!()
-                }
-            } else {
-                base.insert_at(&path, value)?;
-            }
-        }
-
-        Ok(base)
-    }
 }
 
 macro_rules! forward_to_deserializer {
@@ -84,7 +66,7 @@ macro_rules! forward_to_deserializer {
             fn $method<V>(self, visitor: V) -> Result<V::Value, Self::Error>
                 where V: serde::de::Visitor<'de>
             {
-                match self {
+                match self.current {
                     Value::Simple(val) => {
                         match val.parse::<$ty>() {
                             Ok(val) => val.into_deserializer().$method(visitor),
@@ -98,7 +80,7 @@ macro_rules! forward_to_deserializer {
     };
 }
 
-impl<'de> IntoDeserializer<'de, EnvDeserializationError> for Value {
+impl<'de> IntoDeserializer<'de, EnvDeserializationError> for Parser<'de> {
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -106,14 +88,14 @@ impl<'de> IntoDeserializer<'de, EnvDeserializationError> for Value {
     }
 }
 
-impl<'de> Deserializer<'de> for Value {
-    type Error = crate::error::EnvDeserializationError;
+impl<'de> Deserializer<'de> for Parser<'de> {
+    type Error = EnvDeserializationError;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
-        match self {
+        match self.current {
             Value::Simple(val) => val.into_deserializer().deserialize_any(visitor),
             Value::Map(_) => self.deserialize_map(visitor),
         }
@@ -123,12 +105,12 @@ impl<'de> Deserializer<'de> for Value {
     where
         V: serde::de::Visitor<'de>,
     {
-        match self {
-            val @ Value::Simple(_) => {
-                SeqDeserializer::new(std::iter::once(val)).deserialize_seq(visitor)
+        match self.current {
+            Value::Simple(_) => {
+                SeqDeserializer::new(std::iter::once(self)).deserialize_seq(visitor)
             }
             Value::Map(values) => {
-                let values = values.into_iter().map(|(_, val)| val);
+                let values = values.into_iter().map(|(_, val)| Self { current: val, config: self.config });
 
                 SeqDeserializer::new(values).deserialize_seq(visitor)
             }
@@ -162,10 +144,10 @@ impl<'de> Deserializer<'de> for Value {
     where
         V: serde::de::Visitor<'de>,
     {
-        match self {
+        match self.current {
             Value::Simple(val) => visitor.visit_enum(val.into_deserializer()),
             Value::Map(values) => visitor.visit_enum(MapAccessDeserializer::new(
-                MapDeserializer::new(values.into_iter()),
+                MapDeserializer::new(values.into_iter().map(|(k ,v)| (k, Self { current: v, config: self.config }))),
             )),
         }
     }
@@ -174,9 +156,9 @@ impl<'de> Deserializer<'de> for Value {
     where
         V: serde::de::Visitor<'de>,
     {
-        match self {
+        match self.current {
             Value::Simple(_) => Err(EnvDeserializationError::UnsupportedValue),
-            Value::Map(values) => visitor.visit_map(MapDeserializer::new(values.into_iter())),
+            Value::Map(values) => visitor.visit_map(MapDeserializer::new(values.into_iter().map(|(k ,v)| (k, Self { current: v, config: self.config }))),),
         }
     }
 
@@ -214,90 +196,82 @@ impl<'de> Deserializer<'de> for Value {
 
 #[cfg(test)]
 mod tests {
-    use super::Value;
+    use std::collections::HashMap;
+
     use serde::Deserialize;
 
+    use super::{Config, Parser, Value, EnvDeserializationError};
+
+    const CONFIG: Config = Config::new();
 
     impl Value {
-        /// Used to simplify the creation of a `Simple` variant of [`Value`].
-        fn simple(s: impl Into<String>) -> Self {
+        pub fn simple(s: impl Into<String>) -> Self {
             Self::Simple(s.into())
+        }
+    }
+
+    impl Parser<'static> {
+        fn simple(s: impl Into<String>) -> Self {
+            Self { config: &CONFIG, current: Value::simple(s) }
+        }
+    }
+
+    impl From<Value> for Parser<'static> {
+        fn from(value: Value) -> Self {
+            Self { config: &CONFIG, current: value }
         }
     }
 
     #[test]
     fn simple_values() {
-        assert_eq!(Ok(true), <_>::deserialize(Value::simple("true")));
+        assert_eq!(
+            Result::<_, EnvDeserializationError>::Ok(true), 
+            <_>::deserialize(Parser::simple("true"))
+        );
 
-        assert_eq!(Ok(25u32), <_>::deserialize(Value::simple("25")));
+        assert_eq!(Ok(25u32), <_>::deserialize(Parser::simple("25")));
         assert_eq!(
             Ok(String::from("foobar")),
-            <_>::deserialize(Value::simple("foobar"))
+            <_>::deserialize(Parser::simple("foobar"))
         );
         assert_eq!(
             Ok(Some(String::from("foobar"))),
-            <_>::deserialize(Value::simple("foobar"))
+            <_>::deserialize(Parser::simple("foobar"))
         );
     }
 
     #[test]
     fn simple_sequence() {
-        assert_eq!(Ok(vec![125u32]), <_>::deserialize(Value::simple("125")));
+        assert_eq!(Result::<_, EnvDeserializationError>::Ok(vec![125u32]), <_>::deserialize(Parser::simple("125")));
         assert_eq!(
             Ok(vec![125u32, 200, 300]),
-            <_>::deserialize(Value::Map(vec![
+            <_>::deserialize(Parser::from(Value::Map(vec![
                 (String::from(""), Value::simple("125")),
                 (String::from(""), Value::simple("200")),
                 (String::from(""), Value::simple("300"))
-            ]))
+            ])))
         );
     }
 
     #[test]
     fn simple_map() {
         assert_eq!(
-            Ok(std::collections::HashMap::from([(
+            Result::<_, EnvDeserializationError>::Ok(HashMap::from([(
                 String::from("foo"),
                 123
             )])),
-            <_>::deserialize(Value::Map(vec![(String::from("foo"), Value::simple("123")),]))
+            <_>::deserialize(Parser::from(Value::Map(vec![(String::from("foo"), Value::simple("123")),])))
         );
 
         assert_eq!(
-            Ok(std::collections::HashMap::from([(
+            Result::<_, EnvDeserializationError>::Ok(HashMap::from([(
                 String::from("foo"),
-                std::collections::HashMap::from([(String::from("bar"), 123)]),
+                HashMap::from([(String::from("bar"), 123)]),
             )])),
-            <_>::deserialize(Value::Map(vec![(
+            <_>::deserialize(Parser::from(Value::Map(vec![(
                 String::from("foo"),
                 Value::Map(vec![(String::from("bar"), Value::simple("123")),])
-            ),]))
+            ),])))
         );
-    }
-
-    #[test]
-    fn convert_list_of_key_vals_to_tree() {
-        let input = vec![
-            (String::from("FOO"), Value::simple("bar")),
-            (String::from("BAZ"), Value::simple("124")),
-            (String::from("NESTED__FOO"), Value::simple("true")),
-            (String::from("NESTED__BAZ"), Value::simple("Hello")),
-        ];
-
-        let expected = Value::Map(vec![
-            (String::from("FOO"), Value::simple("bar")),
-            (String::from("BAZ"), Value::simple("124")),
-            (
-                String::from("NESTED"),
-                Value::Map(vec![
-                    (String::from("FOO"), Value::simple("true")),
-                    (String::from("BAZ"), Value::simple("Hello")),
-                ]),
-            ),
-        ]);
-
-        let actual = Value::from_list(input).unwrap();
-
-        assert_eq!(actual, expected);
     }
 }
