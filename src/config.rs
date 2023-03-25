@@ -1,6 +1,8 @@
+use std::ops::Not;
+
 use serde::de::DeserializeOwned;
 
-use crate::{error, Value, Parser, error::EnvDeserializationError};
+use crate::{error, error::EnvDeserializationError, Parser, Value};
 
 /// Temp
 #[derive(Debug)]
@@ -70,7 +72,10 @@ impl<'a> Config<'a> {
     }
 
     /// Temp
-    fn create_parser<I>(&self, iter: I) -> Result<Parser, EnvDeserializationError> where I: IntoIterator<Item = (String, Value)> {
+    fn create_parser<I>(&self, iter: I) -> Result<Parser, EnvDeserializationError>
+    where
+        I: IntoIterator<Item = (String, Value)>,
+    {
         let mut base = Value::Map(vec![]);
 
         for (key, value) in iter.into_iter() {
@@ -87,7 +92,31 @@ impl<'a> Config<'a> {
             }
         }
 
-        Ok(Parser { config: &self, current: base})
+        Ok(Parser {
+            config: &self,
+            current: base,
+        })
+    }
+
+    /// Temp
+    pub(crate) fn maybe_coerce_case<I>(&self, values: I, corrected_cases: &'static [&'static str]) -> impl Iterator<Item = (String, Value)> where I: IntoIterator<Item = (String, Value)> {
+        let case_sensitive = self.case_sensitive;
+        values.into_iter().map(move |(key, value)| {
+            if case_sensitive.not() {
+                if let Some(coerced_key) = corrected_cases
+                    .iter()
+                    .find(|item| item.eq_ignore_ascii_case(&key))
+                {
+                    println!("Coerced {} into {}", key, coerced_key);
+                    (coerced_key.to_string(), value)
+                } else {
+                    println!("Failed to coerce {}", key);
+                    (key, value)
+                }
+            } else {
+                (key, value)
+            }
+        })
     }
 }
 

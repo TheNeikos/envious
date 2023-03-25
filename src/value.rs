@@ -2,8 +2,8 @@ use serde::de::value::{MapAccessDeserializer, MapDeserializer, SeqDeserializer};
 use serde::de::IntoDeserializer;
 use serde::Deserializer;
 
-use crate::Config;
 use crate::error::EnvDeserializationError;
+use crate::Config;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Value {
@@ -17,28 +17,31 @@ pub(crate) struct Parser<'a> {
 }
 
 impl Value {
-    pub(crate) fn insert_at(&mut self, path: &[&str], value: Value) -> Result<(), EnvDeserializationError> {
+    pub(crate) fn insert_at(
+        &mut self,
+        path: &[&str],
+        value: Value,
+    ) -> Result<(), EnvDeserializationError> {
         match self {
             Value::Simple(_) => Err(EnvDeserializationError::InvalidEnvNesting(
                 path.iter().map(|s| s.to_string()).collect(),
             )),
             Value::Map(values) => {
-                let val = if let Some((_key, val)) =
-                    values.iter_mut().find(|(key, _)| key == path[0])
-                {
-                    match val {
-                        Value::Simple(_) => {
-                            return Err(EnvDeserializationError::InvalidEnvNesting(
-                                path.iter().map(|s| s.to_string()).collect(),
-                            ))
+                let val =
+                    if let Some((_key, val)) = values.iter_mut().find(|(key, _)| key == path[0]) {
+                        match val {
+                            Value::Simple(_) => {
+                                return Err(EnvDeserializationError::InvalidEnvNesting(
+                                    path.iter().map(|s| s.to_string()).collect(),
+                                ))
+                            }
+                            Value::Map(_) => val,
                         }
-                        Value::Map(_) => val,
-                    }
-                } else {
-                    let val = Value::Map(vec![]);
-                    values.push((String::from(path[0].to_string()), val));
-                    &mut values.last_mut().unwrap().1
-                };
+                    } else {
+                        let val = Value::Map(vec![]);
+                        values.push((String::from(path[0].to_string()), val));
+                        &mut values.last_mut().unwrap().1
+                    };
 
                 let path = &path[1..];
 
@@ -51,7 +54,9 @@ impl Value {
                                 path.iter().map(|s| s.to_string()).collect(),
                             ))
                         }
-                        Value::Map(values) => values.push((String::from(path[0].to_string()), value)),
+                        Value::Map(values) => {
+                            values.push((String::from(path[0].to_string()), value))
+                        }
                     }
                     Ok(())
                 }
@@ -110,7 +115,10 @@ impl<'de> Deserializer<'de> for Parser<'de> {
                 SeqDeserializer::new(std::iter::once(self)).deserialize_seq(visitor)
             }
             Value::Map(values) => {
-                let values = values.into_iter().map(|(_, val)| Self { current: val, config: self.config });
+                let values = values.into_iter().map(|(_, val)| Self {
+                    current: val,
+                    config: self.config,
+                });
 
                 SeqDeserializer::new(values).deserialize_seq(visitor)
             }
@@ -138,7 +146,7 @@ impl<'de> Deserializer<'de> for Parser<'de> {
     fn deserialize_enum<V>(
         self,
         _name: &'static str,
-        _variants: &'static [&'static str],
+        variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
@@ -146,9 +154,22 @@ impl<'de> Deserializer<'de> for Parser<'de> {
     {
         match self.current {
             Value::Simple(val) => visitor.visit_enum(val.into_deserializer()),
-            Value::Map(values) => visitor.visit_enum(MapAccessDeserializer::new(
-                MapDeserializer::new(values.into_iter().map(|(k ,v)| (k, Self { current: v, config: self.config }))),
-            )),
+            Value::Map(values) => {
+                // Coerce variants into correct casing if requested
+                let values = self.config.maybe_coerce_case(values, variants);
+
+                visitor.visit_enum(MapAccessDeserializer::new(MapDeserializer::new(
+                    values.map(|(k, v)| {
+                        (
+                            k,
+                            Self {
+                                current: v,
+                                config: self.config,
+                            },
+                        )
+                    }),
+                )))
+            }
         }
     }
 
@@ -158,20 +179,42 @@ impl<'de> Deserializer<'de> for Parser<'de> {
     {
         match self.current {
             Value::Simple(_) => Err(EnvDeserializationError::UnsupportedValue),
-            Value::Map(values) => visitor.visit_map(MapDeserializer::new(values.into_iter().map(|(k ,v)| (k, Self { current: v, config: self.config }))),),
+            Value::Map(values) => {
+                visitor.visit_map(MapDeserializer::new(values.into_iter().map(|(k, v)| {
+                    (
+                        k,
+                        Self {
+                            current: v,
+                            config: self.config,
+                        },
+                    )
+                })))
+            }
         }
     }
 
     fn deserialize_struct<V>(
         self,
         _name: &'static str,
-        _fields: &'static [&'static str],
+        fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
-        self.deserialize_map(visitor)
+        let parser = match self.current {
+            Value::Simple(_) => self,
+            Value::Map(values) => {
+                // Coerce variants into correct casing if requested
+                let values = self.config.maybe_coerce_case(values, fields);
+                Self {
+                    config: self.config,
+                    current: Value::Map(values.collect()),
+                }
+            }
+        };
+
+        parser.deserialize_map(visitor)
     }
 
     forward_to_deserializer! {
@@ -200,7 +243,7 @@ mod tests {
 
     use serde::Deserialize;
 
-    use super::{Config, Parser, Value, EnvDeserializationError};
+    use super::{Config, EnvDeserializationError, Parser, Value};
 
     const CONFIG: Config = Config::new();
 
@@ -212,20 +255,26 @@ mod tests {
 
     impl Parser<'static> {
         fn simple(s: impl Into<String>) -> Self {
-            Self { config: &CONFIG, current: Value::simple(s) }
+            Self {
+                config: &CONFIG,
+                current: Value::simple(s),
+            }
         }
     }
 
     impl From<Value> for Parser<'static> {
         fn from(value: Value) -> Self {
-            Self { config: &CONFIG, current: value }
+            Self {
+                config: &CONFIG,
+                current: value,
+            }
         }
     }
 
     #[test]
     fn simple_values() {
         assert_eq!(
-            Result::<_, EnvDeserializationError>::Ok(true), 
+            Result::<_, EnvDeserializationError>::Ok(true),
             <_>::deserialize(Parser::simple("true"))
         );
 
@@ -242,7 +291,10 @@ mod tests {
 
     #[test]
     fn simple_sequence() {
-        assert_eq!(Result::<_, EnvDeserializationError>::Ok(vec![125u32]), <_>::deserialize(Parser::simple("125")));
+        assert_eq!(
+            Result::<_, EnvDeserializationError>::Ok(vec![125u32]),
+            <_>::deserialize(Parser::simple("125"))
+        );
         assert_eq!(
             Ok(vec![125u32, 200, 300]),
             <_>::deserialize(Parser::from(Value::Map(vec![
@@ -256,11 +308,11 @@ mod tests {
     #[test]
     fn simple_map() {
         assert_eq!(
-            Result::<_, EnvDeserializationError>::Ok(HashMap::from([(
+            Result::<_, EnvDeserializationError>::Ok(HashMap::from([(String::from("foo"), 123)])),
+            <_>::deserialize(Parser::from(Value::Map(vec![(
                 String::from("foo"),
-                123
-            )])),
-            <_>::deserialize(Parser::from(Value::Map(vec![(String::from("foo"), Value::simple("123")),])))
+                Value::simple("123")
+            ),])))
         );
 
         assert_eq!(
