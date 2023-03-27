@@ -33,7 +33,7 @@ fn parse_from_env() {
     let config: Config = temp_env::with_vars(vars, || {
         envious::Config::new()
             .with_prefix("ENVIOUS_")
-            .from_env()
+            .build_from_env()
             .unwrap()
     });
 

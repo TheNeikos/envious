@@ -47,12 +47,12 @@ fn parse_from_env() {
 
     // With case sensitivity, this should succeed
     config.case_sensitive(true);
-    let root: Root = config.from_iter(vars).unwrap();
+    let root: Root = config.build_from_iter(vars).unwrap();
     assert_eq!(root, expected);
 
     // Also without case sensitivity
     config.case_sensitive(false);
-    let root: Root = config.from_iter(vars).unwrap();
+    let root: Root = config.build_from_iter(vars).unwrap();
     assert_eq!(root, expected);
 
     // Now make everything uppercase, as might be expected for envrionment variables
@@ -65,12 +65,12 @@ fn parse_from_env() {
     ];
 
     // This should work when case insensitive
-    let root: Root = config.from_iter(vars).unwrap();
+    let root: Root = config.build_from_iter(vars).unwrap();
     assert_eq!(root, expected);
 
     // But fail when we want case sensitivity again
     config.case_sensitive(true);
-    let result: Result<Root, _> = config.from_iter(vars);
+    let result: Result<Root, _> = config.build_from_iter(vars);
     result.unwrap_err();
 
     // Now make everything lowercase
@@ -83,11 +83,11 @@ fn parse_from_env() {
     ];
 
     // Fails when case sensitive
-    let result: Result<Root, _> = config.from_iter(vars);
+    let result: Result<Root, _> = config.build_from_iter(vars);
     result.unwrap_err();
 
     // Works when case insensitive
     config.case_sensitive(false);
-    let root: Root = config.from_iter(vars).unwrap();
+    let root: Root = config.build_from_iter(vars).unwrap();
     assert_eq!(root, expected);
 }

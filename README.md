@@ -26,7 +26,7 @@ struct Config {
     staircase_orientation: StaircaseOrientation,
 }
 
-let config: Config = envious::Config::new().from_env().expect("Could not deserialize from env");
+let config: Config = envious::Config::default().build_from_env().expect("Could not deserialize from env");
 ```
 
 With the following environment variables:
@@ -52,7 +52,7 @@ To use `envious` simply add it to your `Cargo.toml` with:
 cargo add envious
 ```
 
-and deserialize from your environment with [`Config::new`] and then [`Config::from_env`]!
+and deserialize from your environment with [`Config::default`] and then [`Config::build_from_env`]!
 
 ⚠️ **Current Shortcomings**
 
