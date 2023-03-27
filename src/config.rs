@@ -1,4 +1,4 @@
-use std::ops::Not;
+use std::{borrow::Cow, ops::Not};
 
 use serde::de::DeserializeOwned;
 
@@ -8,12 +8,12 @@ use crate::{error, error::EnvDeserializationError, Parser, Value};
 ///
 /// For information on default behaviours see [`Self::new`].
 /// For details on usage see [`Self::from_env`] and [`Self::from_iter`].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[must_use]
 pub struct Config<'a> {
-    prefix: Option<&'a str>,
+    prefix: Option<Cow<'a, str>>,
     case_sensitive: bool,
-    separator: &'a str,
+    separator: Cow<'a, str>,
 }
 
 impl Default for Config<'static> {
@@ -31,7 +31,7 @@ impl<'a> Config<'a> {
         Self {
             prefix: None,
             case_sensitive: false,
-            separator: "__",
+            separator: Cow::Borrowed("__"),
         }
     }
 
@@ -43,8 +43,11 @@ impl<'a> Config<'a> {
     /// a field with the name `env_variable` is looked for, whereas with a custom separator of
     /// `_`, a field with the name `env` is looked for, where that field is a struct which in turn has a field
     /// `variable`.
-    pub fn with_separator(&mut self, separator: &'a str) -> &mut Self {
-        self.separator = separator;
+    pub fn with_separator<S>(&mut self, separator: S) -> &mut Self
+    where
+        S: Into<Cow<'a, str>>,
+    {
+        self.separator = separator.into();
         self
     }
 
@@ -53,8 +56,11 @@ impl<'a> Config<'a> {
     /// Environments variables without the prefix are discarded.
     ///
     /// Defaults to no prefix being set. The default can be returned to via [`Self::without_prefix`].
-    pub fn with_prefix(&mut self, prefix: &'a str) -> &mut Self {
-        self.prefix = Some(prefix);
+    pub fn with_prefix<S>(&mut self, prefix: S) -> &mut Self
+    where
+        S: Into<Cow<'a, str>>,
+    {
+        self.prefix = Some(prefix.into());
         self
     }
 
@@ -113,7 +119,7 @@ impl<'a> Config<'a> {
     /// let config: Config = envious::Config::new().from_env().unwrap();
     ///# }
     /// ```
-    pub fn from_env<T: DeserializeOwned>(&mut self) -> Result<T, error::EnvDeserializationError> {
+    pub fn from_env<T: DeserializeOwned>(&self) -> Result<T, error::EnvDeserializationError> {
         let env_values = std::env::vars();
         self.from_iter(env_values)
     }
@@ -161,8 +167,8 @@ impl<'a> Config<'a> {
 
         let values = values.filter_map(|(key, value)| {
             let value = Value::Simple(value);
-            if let Some(prefix) = self.prefix {
-                let stripped_key = key.strip_prefix(prefix)?.to_owned();
+            if let Some(prefix) = &self.prefix {
+                let stripped_key = key.strip_prefix(prefix.as_ref())?.to_owned();
                 Some((stripped_key, value))
             } else {
                 Some((key, value))
@@ -182,7 +188,7 @@ impl<'a> Config<'a> {
         let mut base = Value::Map(vec![]);
 
         for (key, value) in iter.into_iter() {
-            let path = key.split(self.separator).collect::<Vec<_>>();
+            let path = key.split(self.separator.as_ref()).collect::<Vec<_>>();
 
             if path.len() == 1 {
                 if let Value::Map(base) = &mut base {
