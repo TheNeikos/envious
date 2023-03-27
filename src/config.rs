@@ -9,10 +9,17 @@ use crate::{error, error::EnvDeserializationError, Parser, Value};
 /// For information on default behaviours see [`Self::new`].
 /// For details on usage see [`Self::from_env`] and [`Self::from_iter`].
 #[derive(Debug)]
+#[must_use]
 pub struct Config<'a> {
     prefix: Option<&'a str>,
     case_sensitive: bool,
     separator: &'a str,
+}
+
+impl Default for Config<'static> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> Config<'a> {
@@ -20,7 +27,6 @@ impl<'a> Config<'a> {
     /// - No prefix
     /// - Case sensitive
     /// - A separator of "__" (double underscore)
-    #[must_use]
     pub const fn new() -> Self {
         Self {
             prefix: None,
