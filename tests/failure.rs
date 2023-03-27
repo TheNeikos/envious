@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use envious::Config;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -8,34 +9,19 @@ struct Simple {
 
 #[test]
 fn wrongly_nested_fields() {
-    let vars = [("test", "true"), ("test__bar", "true")];
+    let vars = [("test", Some("true")), ("test__bar", Some("true"))];
 
-    for (key, val) in vars {
-        std::env::set_var(key, val);
-    }
-
-    let config: Result<Simple, _> = envious::from_env(envious::Prefix::None);
-
-    for (key, _) in vars {
-        std::env::remove_var(key);
-    }
+    let config: Result<Simple, _> = temp_env::with_vars(vars, || Config::new().from_env());
 
     println!("{:?}", config.unwrap_err());
 }
 
 #[test]
 fn wrongly_nested_prefixed_fields() {
-    let vars = [("PRE_test", "true"), ("PRE_test__bar", "true")];
+    let vars = [("PRE_test", Some("true")), ("PRE_test__bar", Some("true"))];
 
-    for (key, val) in vars {
-        std::env::set_var(key, val);
-    }
-
-    let config: Result<Simple, _> = envious::from_env(envious::Prefix::Some("PRE_"));
-
-    for (key, _) in vars {
-        std::env::remove_var(key);
-    }
+    let config: Result<Simple, _> =
+        temp_env::with_vars(vars, || Config::new().with_prefix("PRE_").from_env());
 
     println!("{:?}", config.unwrap_err());
 }

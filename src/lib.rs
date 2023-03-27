@@ -1,42 +1,22 @@
 #![doc = include_str!("../README.md")]
 #![deny(missing_docs)]
 
-use error::EnvDeserializationError;
-use serde::de::{value::StringDeserializer, DeserializeOwned, IntoDeserializer};
+use serde::de::DeserializeOwned;
 use value::Value;
 
+mod config;
 mod error;
 mod value;
 
-#[derive(Debug, PartialEq)]
-struct Key {
-    original: String,
-    current: String,
-}
-
-impl AsRef<str> for Key {
-    fn as_ref(&self) -> &str {
-        &self.current
-    }
-}
-
-impl Key {
-    fn new(original: String) -> Self {
-        Self {
-            current: original.clone(),
-            original,
-        }
-    }
-}
-
-impl<'de> IntoDeserializer<'de, EnvDeserializationError> for Key {
-    type Deserializer = StringDeserializer<EnvDeserializationError>;
-    fn into_deserializer(self) -> Self::Deserializer {
-        self.current.into_deserializer()
-    }
-}
+pub use config::Config;
+use value::Parser;
 
 /// Whether to use and strip a prefix, and if so which one
+#[derive(Debug, Copy, Clone)]
+#[deprecated(
+    since = "0.3.0",
+    note = "please use `Config` and its `with_prefix` method instead"
+)]
 pub enum Prefix<'a> {
     /// No prefix, nothing will be stripped
     None,
@@ -87,6 +67,7 @@ pub enum Prefix<'a> {
     Some(&'a str),
 }
 
+#[allow(deprecated)]
 impl<'a> From<Option<&'a str>> for Prefix<'a> {
     /// Allows to easily convert from a `Option` to a `Prefix`
     ///
@@ -102,10 +83,7 @@ impl<'a> From<Option<&'a str>> for Prefix<'a> {
     /// let value: Config = envious::from_env(envious::Prefix::from(maybe_prefix)).expect("Could not read from environment");
     /// ```
     fn from(value: Option<&'a str>) -> Self {
-        match value {
-            Some(v) => Prefix::Some(v),
-            None => Prefix::None,
-        }
+        value.map_or(Prefix::None, Prefix::Some)
     }
 }
 
@@ -148,12 +126,21 @@ impl<'a> From<Option<&'a str>> for Prefix<'a> {
 /// let config: Config = envious::from_env(envious::Prefix::None).expect("Could not read from environment");
 ///# }
 /// ```
+#[deprecated(
+    since = "0.3.0",
+    note = "please use `Config` and its `from_env` method instead"
+)]
+#[allow(deprecated)]
 pub fn from_env<T: DeserializeOwned>(
     prefix: Prefix<'_>,
 ) -> Result<T, error::EnvDeserializationError> {
-    let env_values = std::env::vars();
+    let mut config = Config::new();
 
-    from_iter(env_values, prefix)
+    if let Prefix::Some(prefix) = prefix {
+        config.with_prefix(prefix);
+    }
+
+    config.from_env()
 }
 
 /// Parse a given `T: Deserialize` from anything that can be turned into an iterator.
@@ -190,34 +177,31 @@ pub fn from_env<T: DeserializeOwned>(
 ///
 /// let config: Config = envious::from_iter(vars, envious::Prefix::None).expect("Could not read from environment");
 /// ```
+#[deprecated(
+    since = "0.3.0",
+    note = "please use `Config` and its `from_iter` method instead"
+)]
+#[allow(deprecated)]
 pub fn from_iter<T: DeserializeOwned, I: IntoIterator<Item = (String, String)>>(
     iter: I,
     prefix: Prefix<'_>,
 ) -> Result<T, error::EnvDeserializationError> {
-    let values = iter.into_iter();
-    from_primitive(values.flat_map(|(key, value)| {
-        if let Prefix::Some(prefix) = prefix {
-            let stripped_key = key.strip_prefix(prefix).map(|s| s.to_string())?;
-            Some((Key::new(stripped_key), value))
-        } else {
-            Some((Key::new(key), value))
-        }
-    }))
-}
+    let mut config = Config::new();
 
-fn from_primitive<T: DeserializeOwned, I: Iterator<Item = (Key, String)>>(
-    values: I,
-) -> Result<T, error::EnvDeserializationError> {
-    let deserializer =
-        Value::from_list(values.map(|(key, val)| (key, Value::Simple(val))).collect())?;
-    T::deserialize(deserializer)
+    if let Prefix::Some(prefix) = prefix {
+        config.with_prefix(prefix);
+    }
+
+    config.from_iter(iter)
 }
 
 #[cfg(test)]
 mod test {
+    use std::borrow::Cow;
+
     use serde::Deserialize;
 
-    use crate::{from_primitive, Key};
+    use crate::Config;
 
     #[test]
     fn check_simple_struct() {
@@ -228,9 +212,9 @@ mod test {
 
         let expected = Simple { allowed: true };
 
-        let actual: Simple =
-            from_primitive([(Key::new(String::from("allowed")), String::from("true"))].into_iter())
-                .unwrap();
+        let actual: Simple = Config::new()
+            .from_iter([(String::from("allowed"), "true")].into_iter())
+            .unwrap();
 
         assert_eq!(actual, expected);
     }
@@ -262,21 +246,16 @@ mod test {
             },
         };
 
-        let actual: Nested = from_primitive(
-            [
-                (Key::new(String::from("temp")), String::from("15")),
-                (
-                    Key::new(String::from("inner__smoothness")),
-                    String::from("32.0"),
-                ),
-                (
-                    Key::new(String::from("inner__extra__allowed")),
-                    String::from("false"),
-                ),
-            ]
-            .into_iter(),
-        )
-        .unwrap();
+        let actual: Nested = Config::new()
+            .from_iter(
+                [
+                    ("temp", "15"),
+                    ("inner__smoothness", "32.0"),
+                    ("inner__extra__allowed", "false"),
+                ]
+                .into_iter(),
+            )
+            .unwrap();
 
         assert_eq!(actual, expected);
     }
@@ -293,14 +272,9 @@ mod test {
             allowed_simply: true,
         };
 
-        let actual: Simple = from_primitive(
-            [(
-                Key::new(String::from("ALLOWED-SIMPLY")),
-                String::from("true"),
-            )]
-            .into_iter(),
-        )
-        .unwrap();
+        let actual: Simple = Config::new()
+            .from_iter([("ALLOWED-SIMPLY", String::from("true"))].into_iter())
+            .unwrap();
 
         assert_eq!(actual, expected);
     }
@@ -320,9 +294,9 @@ mod test {
 
         let expected = SimpleEnum { simple: Simple::No };
 
-        let actual: SimpleEnum =
-            from_primitive([(Key::new(String::from("simple")), String::from("No"))].into_iter())
-                .unwrap();
+        let actual: SimpleEnum = Config::new()
+            .from_iter([("simple", Cow::Borrowed("No"))].into_iter())
+            .unwrap();
 
         assert_eq!(actual, expected);
     }
@@ -347,20 +321,15 @@ mod test {
             },
         };
 
-        let actual: ComplexEnum = from_primitive(
-            [
-                (
-                    Key::new(String::from("complex__Access__password")),
-                    String::from("hunter2"),
-                ),
-                (
-                    Key::new(String::from("complex__Access__foo")),
-                    String::from("42.0"),
-                ),
-            ]
-            .into_iter(),
-        )
-        .unwrap();
+        let actual: ComplexEnum = Config::new()
+            .from_iter(
+                [
+                    ("complex__Access__password", "hunter2"),
+                    ("complex__Access__foo", "42.0"),
+                ]
+                .into_iter(),
+            )
+            .unwrap();
 
         assert_eq!(actual, expected);
     }

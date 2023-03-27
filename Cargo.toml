@@ -1,6 +1,6 @@
 [package]
 name = "envious"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Deserialize (potentially nested) environment variables into your custom structs"
@@ -15,4 +15,5 @@ serde = "1.0.152"
 thiserror = "1.0.38"
 
 [dev-dependencies]
+temp-env = "0.3"
 serde = { version = "1.0.152", features = ["derive"] }
