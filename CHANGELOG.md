@@ -1,18 +1,13 @@
 # Changelog `envious`
 
-## v0.3.0
+## v0.2.0
 
-The 0.3.0 version makes the following API changes:
+The 0.2.0 version makes the following API changes:
 
 - `Config` is the new entrypoint to `envious`, with all interactions happening via method calls.
 - Case sensitivity is now configurable, see `Config::case_sensitive`
     - NB: The default is case insensitive, which is a change from the original behaviour.
-- The separator is now configurable, using the same default as `0.2.0`, see `Config::with_separator`
-
-## v0.2.0
-
-The 0.2.0 version adds the following features
-
+- The separator is now configurable, using the same default as `0.1.x`, see `Config::with_separator`
 - Add `from_iter` allowing to deserialize from any source of `(String, String)` pairs
 
 ## v0.1.1
