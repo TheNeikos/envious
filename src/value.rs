@@ -245,7 +245,7 @@ mod tests {
 
     use super::{Config, EnvDeserializationError, Parser, Value};
 
-    const CONFIG: Config = Config::new();
+    static CONFIG: Config = Config::new();
 
     impl Value {
         pub fn simple(s: impl Into<String>) -> Self {
