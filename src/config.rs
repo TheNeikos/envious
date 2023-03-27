@@ -25,12 +25,12 @@ impl Default for Config<'static> {
 impl<'a> Config<'a> {
     /// Create a new instance of [`Config`] with basic values. i.e.
     /// - No prefix
-    /// - Case sensitive
+    /// - Case insensitive
     /// - A separator of "__" (double underscore)
     pub const fn new() -> Self {
         Self {
             prefix: None,
-            case_sensitive: true,
+            case_sensitive: false,
             separator: "__",
         }
     }
@@ -68,7 +68,7 @@ impl<'a> Config<'a> {
 
     /// Configured whether the parsing of environment variables names is case sensitive or not.
     ///
-    /// Defaults to case sensitive.
+    /// Defaults to case insensitive.
     ///
     /// NB: Only `struct` fields and `enum` variants are affected by case sensitivity.
     pub fn case_sensitive(&mut self, case_sensitive: bool) -> &mut Self {

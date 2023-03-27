@@ -10,6 +10,7 @@ The 0.3.0 version makes the following API changes:
 The 0.2.0 version adds the following features:
 
 - Case sensitivity is now configurable, see `Config::case_sensitive`
+    - NB: The default is case insensitive, which is a change from the original behaviour.
 - The separator is now configurable, using the same default as `0.2.0`, see `Config::with_separator`
 
 ## v0.2.0

@@ -143,7 +143,7 @@ As you can see, the individual 'keys' of the array do not matter! The same key r
 
 #### Unit enums variants (without fields), are serialized from strings
 
-As you can see in the example above, the `Material` enum gets simply deserialized from the name of the variant. **Be careful about upper/lower case** if you have not configured case insensitivity via [`Config::case_sensitive`]. By default Serde expects that the case is _exactly_ the same!
+As you can see in the example above, the `Material` enum gets simply deserialized from the name of the variant. **Be careful about upper/lower case** if you have enabled case sensitivity via [`Config::case_sensitive`]. With this enabled, Serde requires that the case is _exactly_ the same!
 
 #### Complex enum variants are serialzed just like structs
 

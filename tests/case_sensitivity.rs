@@ -46,6 +46,7 @@ fn parse_from_env() {
     ];
 
     // With case sensitivity, this should succeed
+    config.case_sensitive(true);
     let root: Root = config.from_iter(vars).unwrap();
     assert_eq!(root, expected);
 
