@@ -31,6 +31,7 @@ fn parse_from_env() {
         ("upstairs__doors__foo__material", Some("Unknown")),
     ];
 
-    let config: Config = temp_env::with_vars(vars, || envious::Config::new().from_env().unwrap());
+    let config: Config =
+        temp_env::with_vars(vars, || envious::Config::new().build_from_env().unwrap());
     println!("{:#?}", config);
 }

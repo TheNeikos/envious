@@ -7,7 +7,7 @@ use crate::{error, error::EnvDeserializationError, Parser, Value};
 /// Used to configure the behaviour of the environment variable deserialization.
 ///
 /// For information on default behaviours see [`Self::new`].
-/// For details on usage see [`Self::from_env`] and [`Self::from_iter`].
+/// For details on usage see [`Self::build_from_env`] and [`Self::build_from_iter`].
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct Config<'a> {
@@ -17,13 +17,14 @@ pub struct Config<'a> {
 }
 
 impl Default for Config<'static> {
+    /// See [`Config::new`] for details on the default
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<'a> Config<'a> {
-    /// Create a new instance of [`Config`] with basic values. i.e.
+    /// Create a new instance of [`Config`] with the following configuration:
     /// - No prefix
     /// - Case insensitive
     /// - A separator of "__" (double underscore)
@@ -39,10 +40,19 @@ impl<'a> Config<'a> {
     ///
     /// Defaults to `__` (double underscore)
     ///
-    /// E.g. with an environment variable named `env_variable`, and the default separator,
-    /// a field with the name `env_variable` is looked for, whereas with a custom separator of
-    /// `_`, a field with the name `env` is looked for, where that field is a struct which in turn has a field
-    /// `variable`.
+    /// ## Example
+    ///
+    /// Per default (i.e. `__` seperator) an env variable named `foo_bar` would be interpreted as
+    /// the field with the same name `foo_bar`.
+    ///
+    /// If you change the seperator to `_`, then in that case it would be interpreted as the
+    /// following structure:
+    ///
+    /// ```text
+    /// foo: {
+    ///   bar: <value>
+    /// }
+    /// ```
     pub fn with_separator<S>(&mut self, separator: S) -> &mut Self
     where
         S: Into<Cow<'a, str>>,
@@ -55,7 +65,7 @@ impl<'a> Config<'a> {
     ///
     /// Environments variables without the prefix are discarded.
     ///
-    /// Defaults to no prefix being set. The default can be returned to via [`Self::without_prefix`].
+    /// Defaults to no prefix being set. You can switch back to the default via [`Self::without_prefix`].
     pub fn with_prefix<S>(&mut self, prefix: S) -> &mut Self
     where
         S: Into<Cow<'a, str>>,
@@ -116,12 +126,12 @@ impl<'a> Config<'a> {
     ///#         std::env::set_var(key, val);
     ///#     }
     ///#
-    /// let config: Config = envious::Config::new().from_env().unwrap();
+    /// let config: Config = envious::Config::default().from_env().unwrap();
     ///# }
     /// ```
-    pub fn from_env<T: DeserializeOwned>(&self) -> Result<T, error::EnvDeserializationError> {
+    pub fn build_from_env<T: DeserializeOwned>(&self) -> Result<T, error::EnvDeserializationError> {
         let env_values = std::env::vars();
-        self.from_iter(env_values)
+        self.build_from_iter(env_values)
     }
 
     /// Parse a given `T: Deserialize` from anything that can be turned into an iterator of key value tuples.
@@ -154,9 +164,9 @@ impl<'a> Config<'a> {
     ///     ("staircase_orientation", "Left"),
     /// ];
     ///
-    /// let config: Config = envious::Config::new().from_iter(vars).unwrap();
+    /// let config: Config = envious::Config::default().build_from_iter(vars).unwrap();
     /// ```
-    pub fn from_iter<T, K, V, I>(&self, iter: I) -> Result<T, error::EnvDeserializationError>
+    pub fn build_from_iter<T, K, V, I>(&self, iter: I) -> Result<T, error::EnvDeserializationError>
     where
         T: DeserializeOwned,
         K: Into<String>,

@@ -23,6 +23,7 @@ fn parse_from_env() {
         ("staircase_orientation", Some("Left")),
     ];
 
-    let config: Config = temp_env::with_vars(vars, || envious::Config::new().from_env().unwrap());
+    let config: Config =
+        temp_env::with_vars(vars, || envious::Config::new().build_from_env().unwrap());
     println!("{:#?}", config);
 }

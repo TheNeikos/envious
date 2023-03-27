@@ -5,10 +5,6 @@
 The 0.3.0 version makes the following API changes:
 
 - `Config` is the new entrypoint to `envious`, with all interactions happening via method calls.
-- Existing functions are now wrappers around `Config` and will persist until `0.4.0` at which point they will be removed. This is indicated by deprecation warnings on the functions.
-
-The 0.2.0 version adds the following features:
-
 - Case sensitivity is now configurable, see `Config::case_sensitive`
     - NB: The default is case insensitive, which is a change from the original behaviour.
 - The separator is now configurable, using the same default as `0.2.0`, see `Config::with_separator`
