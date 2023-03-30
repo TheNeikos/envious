@@ -90,4 +90,22 @@ fn parse_from_env() {
     config.case_sensitive(false);
     let root: Root = config.build_from_iter(vars).unwrap();
     assert_eq!(root, expected);
+
+    // Inconsistent casing
+    let vars = [
+        ("field1", "1"),
+        ("field2", "ALSO_EMPTY"),
+        ("Field3__field1", "2"),
+        ("fIeld3__field2__notempty", "3"),
+        ("fiEld3__field3", "4"),
+    ];
+
+    // Works when case insensitive
+    let root: Root = config.build_from_iter(vars).unwrap();
+    assert_eq!(root, expected);
+
+    // Fails when case sensitive
+    config.case_sensitive(true);
+    let result: Result<Root, _> = config.build_from_iter(vars);
+    result.unwrap_err();
 }

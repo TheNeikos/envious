@@ -38,4 +38,26 @@ fn parse_from_env() {
     });
 
     println!("{:#?}", config);
+
+    // When case insensitive, the same test should succeed with a lowercase prefix.
+    let config: Config = temp_env::with_vars(vars, || {
+        envious::Config::new()
+            .case_sensitive(false)
+            .with_prefix("envious_")
+            .build_from_env()
+            .unwrap()
+    });
+
+    println!("{:#?}", config);
+
+    // However when case sensitive, it will fail.
+    let result: Result<Config, _> = temp_env::with_vars(vars, || {
+        envious::Config::new()
+            .case_sensitive(true)
+            .with_prefix("envious_")
+            .build_from_env()
+    });
+    let err = result.unwrap_err();
+
+    println!("{:#?}", err);
 }
