@@ -86,7 +86,7 @@ impl<'a> Config<'a> {
     ///
     /// Defaults to case insensitive.
     ///
-    /// NB: Only `struct` fields and `enum` variants are affected by case sensitivity.
+    /// NB: Only `struct` fields and `enum` variants, as well as any prefix provided via [`Self::with_prefix`] are affected by case sensitivity.
     pub fn case_sensitive(&mut self, case_sensitive: bool) -> &mut Self {
         self.case_sensitive = case_sensitive;
         self
@@ -175,10 +175,26 @@ impl<'a> Config<'a> {
     {
         let values = iter.into_iter().map(|(k, v)| (k.into(), v.into()));
 
-        let values = values.filter_map(|(key, value)| {
+        let values = values.filter_map(|(mut key, value)| {
+            // When running case-insensitive we need to make sure that same key with varying casing
+            // would be stored in the same place. The simplest way to do this is to enforce a specific
+            // case.
+            if self.case_sensitive.not() {
+                key.make_ascii_lowercase();
+            }
             let value = Value::Simple(value);
+
             if let Some(prefix) = &self.prefix {
-                let stripped_key = key.strip_prefix(prefix.as_ref())?.to_owned();
+                // If case insensitive, then the prefix will need to match the new key case
+                let coerced_prefix;
+                let prefix = if self.case_sensitive {
+                    prefix.as_ref()
+                } else {
+                    coerced_prefix = prefix.to_ascii_lowercase();
+                    &coerced_prefix
+                };
+
+                let stripped_key = key.strip_prefix(prefix)?.to_owned();
                 Some((stripped_key, value))
             } else {
                 Some((key, value))
@@ -255,14 +271,14 @@ mod tests {
     #[test]
     fn convert_list_of_key_vals_to_tree() {
         let input = vec![
-            (String::from("FOO"), Value::simple("bar")),
+            (String::from("FOO"), Value::simple("BAR")),
             (String::from("BAZ"), Value::simple("124")),
             (String::from("NESTED__FOO"), Value::simple("true")),
             (String::from("NESTED__BAZ"), Value::simple("Hello")),
         ];
 
         let expected = Value::Map(vec![
-            (String::from("FOO"), Value::simple("bar")),
+            (String::from("FOO"), Value::simple("BAR")),
             (String::from("BAZ"), Value::simple("124")),
             (
                 String::from("NESTED"),

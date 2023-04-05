@@ -1,5 +1,13 @@
 # Changelog `envious`
 
+## v0.2.1
+
+The 0.2.1 version fixes several unexpected behaviours w.r.t. case sensitivity:
+
+- When case insensitive, environment variables with the same keys but different casing should be collated
+  - i.e. previously `database__password` and `DATABASE__username` would have conflicted and only one the username or password would be read
+- When case insensitive, the prefix is also treated insensitively
+
 ## v0.2.0
 
 The 0.2.0 version makes the following API changes:
