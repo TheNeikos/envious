@@ -6,14 +6,14 @@ use crate::error::EnvDeserializationError;
 use crate::Config;
 
 #[derive(Debug, PartialEq)]
-pub enum Value {
+pub(crate) enum Value {
     Simple(String),
     Map(Vec<(String, Value)>),
 }
 
-pub struct Parser<'a> {
-    pub config: &'a Config<'a>,
-    pub current: Value,
+pub(crate) struct Parser<'a> {
+    pub(crate) config: &'a Config<'a>,
+    pub(crate) current: Value,
 }
 
 impl Value {
@@ -248,7 +248,7 @@ mod tests {
     static CONFIG: Config = Config::new();
 
     impl Value {
-        pub fn simple(s: impl Into<String>) -> Self {
+        pub(crate) fn simple(s: impl Into<String>) -> Self {
             Self::Simple(s.into())
         }
     }
