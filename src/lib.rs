@@ -1,5 +1,5 @@
 #![doc = include_str!("../README.md")]
-#![deny(missing_docs)]
+#![deny(missing_docs, unreachable_pub)]
 
 use value::Value;
 
@@ -8,7 +8,7 @@ mod error;
 mod value;
 
 pub use config::Config;
-use value::Parser;
+pub use error::EnvDeserializationError;
 
 #[cfg(test)]
 mod test {
