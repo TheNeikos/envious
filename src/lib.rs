@@ -8,7 +8,7 @@ mod error;
 mod value;
 
 pub use config::Config;
-use value::Parser;
+pub use error::EnvDeserializationError;
 
 #[cfg(test)]
 mod test {
