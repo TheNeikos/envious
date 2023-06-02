@@ -2,7 +2,7 @@ use std::{borrow::Cow, ops::Not};
 
 use serde::de::DeserializeOwned;
 
-use crate::{error, error::EnvDeserializationError, Parser, Value};
+use crate::{error, error::EnvDeserializationError, value::Parser, Value};
 
 /// Used to configure the behaviour of the environment variable deserialization.
 ///
