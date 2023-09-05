@@ -140,16 +140,13 @@ The same key always corresponds to the same object, and keys are sorted as follo
 - Keys without a number come first, and are sorted the same way as strings are normally sorted
 - Keys starting with a number are sorted by the number (1 -> 2 -> 10), then the remaining parts of the key (if any) are sorted lexicographically.
 
-i.e.
+i.e. the following environment variables are listed in the order they'd be sorted into.
 
-```rust
-// Env variables:
-// config_array__a=a
-// config_array__1=1
-// config_array__1b=1b
-// config_array__2a=2a
-let config = ...;
-assert_eq!(config, Config { array: vec!["a" "1", "1b", "2a"]});
+```bash
+export config_array__a="data"
+export config_array__1="data"
+export config_array__1b="data"
+export config_array__2a="data"
 ```
 
 ### Unit enums variants (without fields), are serialized from strings
