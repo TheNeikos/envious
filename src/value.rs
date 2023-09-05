@@ -1,3 +1,5 @@
+use std::ops::Not;
+
 use serde::de::value::{MapAccessDeserializer, MapDeserializer, SeqDeserializer};
 use serde::de::IntoDeserializer;
 use serde::Deserializer;
@@ -113,6 +115,13 @@ impl<'de> Deserializer<'de> for Parser<'de> {
         match self.current {
             Value::Simple(_) => {
                 SeqDeserializer::new(std::iter::once(self)).deserialize_seq(visitor)
+            }
+            Value::Map(values) if self.config.ordered_arrays.not() => {
+                let values = values.into_iter().map(|(_key, val)| Self {
+                    current: val,
+                    config: self.config,
+                });
+                SeqDeserializer::new(values).deserialize_seq(visitor)
             }
             Value::Map(values) => {
                 // Convert the key into a two part sorting token:
@@ -362,6 +371,46 @@ mod tests {
                 (String::from("2a"), Value::simple("2a")),
                 (String::from("1"), Value::simple("1")),
             ])))
+        );
+    }
+
+    #[test]
+    fn unsorted_sequence() {
+        let mut config = CONFIG.clone();
+        config.ordered_arrays = false;
+
+        let mut parser = Parser::from(Value::Map(vec![
+            (String::from("a"), Value::simple("a")),
+            (String::from("1"), Value::simple("1")),
+            (String::from("1b"), Value::simple("1b")),
+            (String::from("2a"), Value::simple("2a")),
+        ]));
+        parser.config = &config;
+        assert_eq!(
+            Ok(vec![
+                "a".to_owned(),
+                "1".to_owned(),
+                "1b".to_owned(),
+                "2a".to_owned(),
+            ]),
+            <_>::deserialize(parser)
+        );
+
+        let mut parser = Parser::from(Value::Map(vec![
+            (String::from("1b"), Value::simple("1b")),
+            (String::from("a"), Value::simple("a")),
+            (String::from("2a"), Value::simple("2a")),
+            (String::from("1"), Value::simple("1")),
+        ]));
+        parser.config = &config;
+        assert_eq!(
+            Ok(vec![
+                "1b".to_owned(),
+                "a".to_owned(),
+                "2a".to_owned(),
+                "1".to_owned(),
+            ]),
+            <_>::deserialize(parser)
         );
     }
 

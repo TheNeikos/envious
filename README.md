@@ -91,7 +91,7 @@ export radiator__min_temp=15.0
 export radiator__max_temp=30.0
 ```
 
-### Arrays are serialized using nested fields with the individual keys being sorted
+### Arrays are serialized using nested fields
 
 Arrays are represented as anonymous structs, with the 'fields' being the individual elements.
 
@@ -135,19 +135,7 @@ export entrance_doors__foo__height=20
 export entrance_doors__foo__material="Plastic"
 ```
 
-The same key always corresponds to the same object, and keys are sorted as follows numerically, followed by lexicographically. This means:
-
-- Keys without a number come first, and are sorted the same way as strings are normally sorted
-- Keys starting with a number are sorted by the number (1 -> 2 -> 10), then the remaining parts of the key (if any) are sorted lexicographically.
-
-i.e. the following environment variables are listed in the order they'd be sorted into.
-
-```bash
-export config_array__a="data"
-export config_array__1="data"
-export config_array__1b="data"
-export config_array__2a="data"
-```
+For details on ordering, see [`Config::ordered_arrays`].
 
 ### Unit enums variants (without fields), are serialized from strings
 

@@ -14,6 +14,7 @@ pub struct Config<'a> {
     prefix: Option<Cow<'a, str>>,
     case_sensitive: bool,
     separator: Cow<'a, str>,
+    pub(crate) ordered_arrays: bool,
 }
 
 impl Default for Config<'static> {
@@ -28,11 +29,13 @@ impl<'a> Config<'a> {
     /// - No prefix
     /// - Case insensitive
     /// - A separator of "__" (double underscore)
+    /// - Sorted arrays
     pub const fn new() -> Self {
         Self {
             prefix: None,
             case_sensitive: false,
             separator: Cow::Borrowed("__"),
+            ordered_arrays: true,
         }
     }
 
@@ -82,13 +85,34 @@ impl<'a> Config<'a> {
         self
     }
 
-    /// Configured whether the parsing of environment variables names is case sensitive or not.
+    /// Configures whether the parsing of environment variables names is case sensitive or not.
     ///
     /// Defaults to case insensitive.
     ///
     /// NB: Only `struct` fields and `enum` variants, as well as any prefix provided via [`Self::with_prefix`] are affected by case sensitivity.
     pub fn case_sensitive(&mut self, case_sensitive: bool) -> &mut Self {
         self.case_sensitive = case_sensitive;
+        self
+    }
+
+    /// Configures whether the to treat arrays as ordered by their key.
+    ///
+    /// Defaults to `true`. If `false`, then array elements will appear in whatever order they are read.
+    ///
+    /// The ordering strategy places elements as follows:
+    /// 1. Sort lexicographically, any indices that don't start with a number (e.g. a,b,f)
+    /// 2. Sort numerically any indices that start with a number (e.g. 1,2,11), these all come after elements from 1.
+    /// 3. Sort lexicographically any indices that start with the same number (e.g. 1a,1b,1f).
+    ///
+    /// E.g., the following are already sorted.
+    /// ```bash
+    /// export config_array__a="data"
+    /// export config_array__1="data"
+    /// export config_array__1b="data"
+    /// export config_array__2a="data"
+    /// ```
+    pub fn ordered_arrays(&mut self, ordered_arrays: bool) -> &mut Self {
+        self.ordered_arrays = ordered_arrays;
         self
     }
 

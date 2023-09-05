@@ -15,6 +15,8 @@ Breaking change: Although no code will fail to compile, the following change may
   assert_eq!(config, Config { array: vec!["a" "1", "1b", "2a"]});
   ```
 
+- Add a new `Config` setting to disable this new behaviour (but enable it anyway as it's probably the behaviour most people want).
+
 ## v0.2.1
 
 The 0.2.1 version fixes several unexpected behaviours w.r.t. case sensitivity:
