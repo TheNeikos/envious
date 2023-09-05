@@ -117,39 +117,36 @@ impl<'de> Deserializer<'de> for Parser<'de> {
                 SeqDeserializer::new(std::iter::once(self)).deserialize_seq(visitor)
             }
             Value::Map(values) => {
-                // Convert the map into a sequence
-                fn converter<'de, I, K>(
-                    config: &'de Config,
-                    iter: I,
-                ) -> impl Iterator<Item = Parser<'de>>
-                where
-                    I: IntoIterator<Item = (K, Value)>,
-                {
-                    iter.into_iter().map(|(_, val)| Parser {
-                        current: val,
-                        config,
-                    })
-                }
+                // Convert the key into a two part sorting token and store them in an ordered data structure:
+                // 1. An optional numeric prefix
+                // 2. A (potentially empty) string suffix
+                let values: BTreeMap<_, _> = values
+                    .into_iter()
+                    .map(|(key, value)| {
+                        let mut chars = key.chars().peekable();
 
-                // Check if we can sort these keys numerically.
-                //
-                // Do a double pass so we can take ownership in the second one.
-                if values
-                    .iter()
-                    .all(|(key, _value)| key.parse::<usize>().is_ok())
-                {
-                    let numeric_iter: BTreeMap<_, _> = values
-                        .into_iter()
-                        .map(|(key, value)| {
-                            (key.parse::<usize>().expect("Already validated"), value)
-                        })
-                        .collect();
-                    SeqDeserializer::new(converter(self.config, numeric_iter))
-                        .deserialize_seq(visitor)
-                } else {
-                    // Just go through them in the order we found them
-                    SeqDeserializer::new(converter(self.config, values)).deserialize_seq(visitor)
-                }
+                        let mut num = String::new();
+
+                        while chars.peek().map(char::is_ascii_digit).unwrap_or(false) {
+                            num.push(chars.next().unwrap());
+                        }
+
+                        // This will only be `None` if `num` is the empty string, as we ensured all its contents are ascii digits.
+                        let num = num.parse::<usize>().ok();
+
+                        let rest = chars.collect::<String>();
+
+                        (
+                            (num, rest),
+                            Parser {
+                                current: value,
+                                config: self.config,
+                            },
+                        )
+                    })
+                    .collect();
+
+                SeqDeserializer::new(values.into_values()).deserialize_seq(visitor)
             }
         }
     }
