@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use serde::de::value::{MapAccessDeserializer, MapDeserializer, SeqDeserializer};
 use serde::de::IntoDeserializer;
 use serde::Deserializer;
@@ -117,10 +115,10 @@ impl<'de> Deserializer<'de> for Parser<'de> {
                 SeqDeserializer::new(std::iter::once(self)).deserialize_seq(visitor)
             }
             Value::Map(values) => {
-                // Convert the key into a two part sorting token and store them in an ordered data structure:
+                // Convert the key into a two part sorting token:
                 // 1. An optional numeric prefix
                 // 2. A (potentially empty) string suffix
-                let values: BTreeMap<_, _> = values
+                let mut values: Vec<_> = values
                     .into_iter()
                     .map(|(key, value)| {
                         let mut chars = key.chars().peekable();
@@ -146,7 +144,10 @@ impl<'de> Deserializer<'de> for Parser<'de> {
                     })
                     .collect();
 
-                SeqDeserializer::new(values.into_values()).deserialize_seq(visitor)
+                values.sort_by(|(key1, _value1), (key2, _value2)| key1.cmp(key2));
+
+                SeqDeserializer::new(values.into_iter().map(|(_key, value)| value))
+                    .deserialize_seq(visitor)
             }
         }
     }
@@ -334,15 +335,51 @@ mod tests {
     #[test]
     fn sorted_sequence() {
         assert_eq!(
-            Result::<_, EnvDeserializationError>::Ok(vec![125u32]),
-            <_>::deserialize(Parser::simple("125"))
-        );
-        assert_eq!(
-            Ok(vec![200u32, 125, 300]),
+            Ok(vec![
+                "a".to_owned(),
+                "1".to_owned(),
+                "1b".to_owned(),
+                "2a".to_owned(),
+            ]),
             <_>::deserialize(Parser::from(Value::Map(vec![
-                (String::from("1"), Value::simple("125")),
-                (String::from("0"), Value::simple("200")),
-                (String::from("4"), Value::simple("300"))
+                (String::from("a"), Value::simple("a")),
+                (String::from("1"), Value::simple("1")),
+                (String::from("1b"), Value::simple("1b")),
+                (String::from("2a"), Value::simple("2a")),
+            ])))
+        );
+
+        assert_eq!(
+            Ok(vec![
+                "a".to_owned(),
+                "1".to_owned(),
+                "1b".to_owned(),
+                "2a".to_owned(),
+            ]),
+            <_>::deserialize(Parser::from(Value::Map(vec![
+                (String::from("1b"), Value::simple("1b")),
+                (String::from("a"), Value::simple("a")),
+                (String::from("2a"), Value::simple("2a")),
+                (String::from("1"), Value::simple("1")),
+            ])))
+        );
+    }
+
+    #[test]
+    fn stable_sorted_sequence() {
+        assert_eq!(
+            Ok(vec!["a".to_owned(), "b".to_owned(),]),
+            <_>::deserialize(Parser::from(Value::Map(vec![
+                (String::from("a"), Value::simple("a")),
+                (String::from("a"), Value::simple("b")),
+            ])))
+        );
+
+        assert_eq!(
+            Ok(vec!["b".to_owned(), "a".to_owned(),]),
+            <_>::deserialize(Parser::from(Value::Map(vec![
+                (String::from("a"), Value::simple("b")),
+                (String::from("a"), Value::simple("a")),
             ])))
         );
     }
