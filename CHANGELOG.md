@@ -1,9 +1,19 @@
 # Changelog `envious`
 
+## v0.3.0
+
 Breaking change: Although no code will fail to compile, the following change may break assumptions on current behaviour:
 
-- Arrays read from environment variables with numeric keys (e.g. `array__1__value=5`) will now be sorted by those keys
-- Arrays read from environment variables with non-numeric keys (e.g. `array__a__value=5`) will remain in the order we are given the environment variables by the Operating System
+- Arrays read from environment variables will now be sorted by those keys. This first tries to sort them numerically, then lexographically with the remaining key data. i.e.
+  ```rust
+  // Env variables:
+  // config_array__a=a
+  // config_array__1=1
+  // config_array__1b=1b
+  // config_array__2a=2a
+  let config = ...;
+  assert_eq!(config, Config { array: vec!["a" "1", "1b", "2a"]});
+  ```
 
 ## v0.2.1
 
