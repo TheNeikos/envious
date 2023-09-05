@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::de::value::{MapAccessDeserializer, MapDeserializer, SeqDeserializer};
 use serde::de::IntoDeserializer;
 use serde::Deserializer;
@@ -115,12 +117,39 @@ impl<'de> Deserializer<'de> for Parser<'de> {
                 SeqDeserializer::new(std::iter::once(self)).deserialize_seq(visitor)
             }
             Value::Map(values) => {
-                let values = values.into_iter().map(|(_, val)| Self {
-                    current: val,
-                    config: self.config,
-                });
+                // Convert the map into a sequence
+                fn converter<'de, I, K>(
+                    config: &'de Config,
+                    iter: I,
+                ) -> impl Iterator<Item = Parser<'de>>
+                where
+                    I: IntoIterator<Item = (K, Value)>,
+                {
+                    iter.into_iter().map(|(_, val)| Parser {
+                        current: val,
+                        config,
+                    })
+                }
 
-                SeqDeserializer::new(values).deserialize_seq(visitor)
+                // Check if we can sort these keys numerically.
+                //
+                // Do a double pass so we can take ownership in the second one.
+                if values
+                    .iter()
+                    .all(|(key, _value)| key.parse::<usize>().is_ok())
+                {
+                    let numeric_iter: BTreeMap<_, _> = values
+                        .into_iter()
+                        .map(|(key, value)| {
+                            (key.parse::<usize>().expect("Already validated"), value)
+                        })
+                        .collect();
+                    SeqDeserializer::new(converter(self.config, numeric_iter))
+                        .deserialize_seq(visitor)
+                } else {
+                    // Just go through them in the order we found them
+                    SeqDeserializer::new(converter(self.config, values)).deserialize_seq(visitor)
+                }
             }
         }
     }
@@ -301,6 +330,22 @@ mod tests {
                 (String::from(""), Value::simple("125")),
                 (String::from(""), Value::simple("200")),
                 (String::from(""), Value::simple("300"))
+            ])))
+        );
+    }
+
+    #[test]
+    fn sorted_sequence() {
+        assert_eq!(
+            Result::<_, EnvDeserializationError>::Ok(vec![125u32]),
+            <_>::deserialize(Parser::simple("125"))
+        );
+        assert_eq!(
+            Ok(vec![200u32, 125, 300]),
+            <_>::deserialize(Parser::from(Value::Map(vec![
+                (String::from("1"), Value::simple("125")),
+                (String::from("0"), Value::simple("200")),
+                (String::from("4"), Value::simple("300"))
             ])))
         );
     }
