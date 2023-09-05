@@ -213,7 +213,7 @@ impl<'a> Config<'a> {
     {
         let mut base = Value::Map(vec![]);
 
-        for (key, value) in iter.into_iter() {
+        for (key, value) in iter {
             let path = key.split(self.separator.as_ref()).collect::<Vec<_>>();
 
             if path.len() == 1 {
@@ -249,7 +249,7 @@ impl<'a> Config<'a> {
         let case_sensitive = self.case_sensitive;
         values.into_iter().map(move |(key, value)| {
             if case_sensitive.not() {
-                if let Some(coerced_key) = corrected_cases
+                if let Some(&coerced_key) = corrected_cases
                     .iter()
                     .find(|item| item.eq_ignore_ascii_case(&key))
                 {
