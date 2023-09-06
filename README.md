@@ -4,8 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/envious.svg)](https://crates.io/crates/envious)
 [![Docs.rs](https://docs.rs/envious/badge.svg)](https://docs.rs/envious)
 
-**`envious` allows you to deserialize your serde enabled structs from
-environment variables.**
+**`envious` allows you to deserialize your serde enabled structs from environment variables.**
 
 See it in action:
 
@@ -57,9 +56,6 @@ and deserialize from your environment with [`Config::default`] and then [`Config
 ⚠️ **Current Shortcomings**
 
 - Tuple Enum Variants can currently _not_ be longer than one element!
-- Ordering of arrays is highly sensitive to environment order
-  - No ordering is currently done, and the ordering depends on how the
-    operating system propagates variables
 - Deserializing where a `null` in other formats is required is currently not possible
   - See [#12](https://github.com/TheNeikos/envious/issues/12) for more details
 
@@ -67,7 +63,7 @@ and deserialize from your environment with [`Config::default`] and then [`Config
 
 The mapping between environment variables and the serde model is as follows:
 
-#### Nested fields are seperated by a provided separator.
+### Nested fields are seperated by a provided separator.
 
 This can be modified by using the [`Config::with_separator`] and defaults to `__` (double underscore). For example, if you have the following struct:
 
@@ -95,7 +91,7 @@ export radiator__min_temp=15.0
 export radiator__max_temp=30.0
 ```
 
-#### Arrays are serialized using nested fields with the individual keys being discarded
+### Arrays are serialized using nested fields
 
 Arrays are represented as anonymous structs, with the 'fields' being the individual elements.
 
@@ -139,13 +135,13 @@ export entrance_doors__foo__height=20
 export entrance_doors__foo__material="Plastic"
 ```
 
-As you can see, the individual 'keys' of the array do not matter! The same key refers to the same object though.
+For details on ordering, see [`Config::ordered_arrays`].
 
-#### Unit enums variants (without fields), are serialized from strings
+### Unit enums variants (without fields), are serialized from strings
 
 As you can see in the example above, the `Material` enum gets simply deserialized from the name of the variant. **Be careful about upper/lower case** if you have enabled case sensitivity via [`Config::case_sensitive`]. With this enabled, Serde requires that the case is _exactly_ the same!
 
-#### Complex enum variants are serialzed just like structs
+### Complex enum variants are serialzed just like structs
 
 Per default `serde` uses external tagging for more complicated enum variants.
 Tuple enums are currently only supported with a single value.

@@ -1,3 +1,5 @@
+use std::ops::Not;
+
 use serde::de::value::{MapAccessDeserializer, MapDeserializer, SeqDeserializer};
 use serde::de::IntoDeserializer;
 use serde::Deserializer;
@@ -114,13 +116,47 @@ impl<'de> Deserializer<'de> for Parser<'de> {
             Value::Simple(_) => {
                 SeqDeserializer::new(std::iter::once(self)).deserialize_seq(visitor)
             }
-            Value::Map(values) => {
-                let values = values.into_iter().map(|(_, val)| Self {
+            Value::Map(values) if self.config.ordered_arrays.not() => {
+                let values = values.into_iter().map(|(_key, val)| Self {
                     current: val,
                     config: self.config,
                 });
-
                 SeqDeserializer::new(values).deserialize_seq(visitor)
+            }
+            Value::Map(values) => {
+                // Convert the key into a two part sorting token:
+                // 1. An optional numeric prefix
+                // 2. A (potentially empty) string suffix
+                let mut values: Vec<_> = values
+                    .into_iter()
+                    .map(|(key, value)| {
+                        let mut chars = key.chars().peekable();
+
+                        let mut num = String::new();
+
+                        while chars.peek().map_or(false, char::is_ascii_digit) {
+                            num.push(chars.next().unwrap());
+                        }
+
+                        // This will only be `None` if `num` is the empty string, as we ensured all its contents are ascii digits.
+                        let num = num.parse::<usize>().ok();
+
+                        let rest = chars.collect::<String>();
+
+                        (
+                            (num, rest),
+                            Parser {
+                                current: value,
+                                config: self.config,
+                            },
+                        )
+                    })
+                    .collect();
+
+                values.sort_by(|(key1, _value1), (key2, _value2)| key1.cmp(key2));
+
+                SeqDeserializer::new(values.into_iter().map(|(_key, value)| value))
+                    .deserialize_seq(visitor)
             }
         }
     }
@@ -301,6 +337,98 @@ mod tests {
                 (String::from(""), Value::simple("125")),
                 (String::from(""), Value::simple("200")),
                 (String::from(""), Value::simple("300"))
+            ])))
+        );
+    }
+
+    #[test]
+    fn sorted_sequence() {
+        assert_eq!(
+            Ok(vec![
+                "a".to_owned(),
+                "1".to_owned(),
+                "1b".to_owned(),
+                "2a".to_owned(),
+            ]),
+            <_>::deserialize(Parser::from(Value::Map(vec![
+                (String::from("a"), Value::simple("a")),
+                (String::from("1"), Value::simple("1")),
+                (String::from("1b"), Value::simple("1b")),
+                (String::from("2a"), Value::simple("2a")),
+            ])))
+        );
+
+        assert_eq!(
+            Ok(vec![
+                "a".to_owned(),
+                "1".to_owned(),
+                "1b".to_owned(),
+                "2a".to_owned(),
+            ]),
+            <_>::deserialize(Parser::from(Value::Map(vec![
+                (String::from("1b"), Value::simple("1b")),
+                (String::from("a"), Value::simple("a")),
+                (String::from("2a"), Value::simple("2a")),
+                (String::from("1"), Value::simple("1")),
+            ])))
+        );
+    }
+
+    #[test]
+    fn unsorted_sequence() {
+        let mut config = CONFIG.clone();
+        config.ordered_arrays = false;
+
+        let mut parser = Parser::from(Value::Map(vec![
+            (String::from("a"), Value::simple("a")),
+            (String::from("1"), Value::simple("1")),
+            (String::from("1b"), Value::simple("1b")),
+            (String::from("2a"), Value::simple("2a")),
+        ]));
+        parser.config = &config;
+        assert_eq!(
+            Ok(vec![
+                "a".to_owned(),
+                "1".to_owned(),
+                "1b".to_owned(),
+                "2a".to_owned(),
+            ]),
+            <_>::deserialize(parser)
+        );
+
+        let mut parser = Parser::from(Value::Map(vec![
+            (String::from("1b"), Value::simple("1b")),
+            (String::from("a"), Value::simple("a")),
+            (String::from("2a"), Value::simple("2a")),
+            (String::from("1"), Value::simple("1")),
+        ]));
+        parser.config = &config;
+        assert_eq!(
+            Ok(vec![
+                "1b".to_owned(),
+                "a".to_owned(),
+                "2a".to_owned(),
+                "1".to_owned(),
+            ]),
+            <_>::deserialize(parser)
+        );
+    }
+
+    #[test]
+    fn stable_sorted_sequence() {
+        assert_eq!(
+            Ok(vec!["a".to_owned(), "b".to_owned(),]),
+            <_>::deserialize(Parser::from(Value::Map(vec![
+                (String::from("a"), Value::simple("a")),
+                (String::from("a"), Value::simple("b")),
+            ])))
+        );
+
+        assert_eq!(
+            Ok(vec!["b".to_owned(), "a".to_owned(),]),
+            <_>::deserialize(Parser::from(Value::Map(vec![
+                (String::from("a"), Value::simple("b")),
+                (String::from("a"), Value::simple("a")),
             ])))
         );
     }
