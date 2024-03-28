@@ -17,12 +17,9 @@ struct Inner {
 #[test]
 fn parse_hashmap() {
     let vars = [
-        ("values__0key", ("first key")),
-        ("values__0val", ("first value")),
-        ("values__1key", ("second key")),
+        ("values__0key", ("first value")),
         ("values__1val", ("second value")),
-        ("inner__more_values__0key", ("first inner key")),
-        ("inner__more_values__0val", ("first inner value")),
+        ("inner__more_values__0key", ("first inner value")),
     ];
 
     let config: Outer = envious::Config::new().build_from_iter(vars).unwrap();
