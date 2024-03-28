@@ -26,12 +26,11 @@ struct Config {
 #[test]
 fn parse_from_env() {
     let vars = [
-        ("upstairs__doors__0__material__Wood__kind", Some("Mahagony")),
-        ("upstairs__doors__1__material__Plastic", Some("25")),
-        ("upstairs__doors__foo__material", Some("Unknown")),
+        ("upstairs__doors__0__material__Wood__kind", "Mahagony"),
+        ("upstairs__doors__1__material__Plastic", "25"),
+        ("upstairs__doors__foo__material", "Unknown"),
     ];
 
-    let config: Config =
-        temp_env::with_vars(vars, || envious::Config::new().build_from_env().unwrap());
+    let config: Config = envious::Config::new().build_from_iter(vars).unwrap();
     println!("{:#?}", config);
 }

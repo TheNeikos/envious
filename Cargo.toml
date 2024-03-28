@@ -15,5 +15,4 @@ serde = "1.0.152"
 thiserror = "1.0.38"
 
 [dev-dependencies]
-temp-env = "0.3"
 serde = { version = "1.0.152", features = ["derive"] }

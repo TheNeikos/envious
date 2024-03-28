@@ -26,17 +26,15 @@ struct Config {
 #[test]
 fn parse_from_env() {
     let vars = [
-        ("ENVIOUS_upstairs__doors__0__material", Some("Wood")),
-        ("ENVIOUS_upstairs__doors__2__material", Some("Glass")),
-        ("ENVIOUS_upstairs__doors__1__material", Some("Plastic")),
+        ("ENVIOUS_upstairs__doors__0__material", ("Wood")),
+        ("ENVIOUS_upstairs__doors__2__material", ("Glass")),
+        ("ENVIOUS_upstairs__doors__1__material", ("Plastic")),
     ];
 
-    let config: Config = temp_env::with_vars(vars, || {
-        envious::Config::new()
-            .with_prefix("ENVIOUS_")
-            .build_from_env()
-            .unwrap()
-    });
+    let config: Config = envious::Config::new()
+        .with_prefix("ENVIOUS_")
+        .build_from_iter(vars)
+        .unwrap();
 
     assert_eq!(
         config,
@@ -58,23 +56,19 @@ fn parse_from_env() {
     );
 
     // When case insensitive, the same test should succeed with a lowercase prefix.
-    let config: Config = temp_env::with_vars(vars, || {
-        envious::Config::new()
-            .case_sensitive(false)
-            .with_prefix("envious_")
-            .build_from_env()
-            .unwrap()
-    });
+    let config: Config = envious::Config::new()
+        .case_sensitive(false)
+        .with_prefix("envious_")
+        .build_from_iter(vars)
+        .unwrap();
 
     println!("{:#?}", config);
 
     // However when case sensitive, it will fail.
-    let result: Result<Config, _> = temp_env::with_vars(vars, || {
-        envious::Config::new()
-            .case_sensitive(true)
-            .with_prefix("envious_")
-            .build_from_env()
-    });
+    let result: Result<Config, _> = envious::Config::new()
+        .case_sensitive(true)
+        .with_prefix("envious_")
+        .build_from_iter(vars);
     let err = result.unwrap_err();
 
     println!("{:#?}", err);
