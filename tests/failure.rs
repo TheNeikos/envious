@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use envious::Config;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -9,19 +8,18 @@ struct Simple {
 
 #[test]
 fn wrongly_nested_fields() {
-    let vars = [("test", Some("true")), ("test__bar", Some("true"))];
+    let vars = [("test", ("true")), ("test__bar", ("true"))];
 
-    let config: Result<Simple, _> = temp_env::with_vars(vars, || Config::new().build_from_env());
+    let config: Result<Simple, _> = envious::Config::new().build_from_iter(vars);
 
     println!("{:?}", config.unwrap_err());
 }
 
 #[test]
 fn wrongly_nested_prefixed_fields() {
-    let vars = [("PRE_test", Some("true")), ("PRE_test__bar", Some("true"))];
+    let vars = [("PRE_test", ("true")), ("PRE_test__bar", ("true"))];
 
-    let config: Result<Simple, _> =
-        temp_env::with_vars(vars, || Config::new().with_prefix("PRE_").build_from_env());
+    let config: Result<Simple, _> = envious::Config::new().build_from_iter(vars);
 
     println!("{:?}", config.unwrap_err());
 }
