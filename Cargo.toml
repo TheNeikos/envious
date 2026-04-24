@@ -11,8 +11,8 @@ resolver = "2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = "1.0.152"
-thiserror = "1.0.38"
+serde = "1.0"
+thiserror = "2.0"
 
 [dev-dependencies]
 serde = { version = "1.0.152", features = ["derive"] }
