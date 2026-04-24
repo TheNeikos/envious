@@ -194,3 +194,6 @@ To contribute to `envious` you can:
 - Open up issues with ideas, remarks, bug reports, etc...
 - Fork and implement new features and send them in as pull requests
 - Leave it a Star and spread the word! ;)
+
+- When sending in a PR, make sure to add a 'Signed-Off-By' to certify that you
+  wrote or are authorized to send in the code
