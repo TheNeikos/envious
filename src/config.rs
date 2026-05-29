@@ -231,7 +231,7 @@ impl<'a> Config<'a> {
     }
 
     /// Creates a [`Parser`] from its various parts.
-    fn create_parser<I>(&self, iter: I) -> Result<Parser, EnvDeserializationError>
+    fn create_parser<I>(&self, iter: I) -> Result<Parser<'_>, EnvDeserializationError>
     where
         I: IntoIterator<Item = (String, Value)>,
     {
