@@ -134,7 +134,7 @@ impl<'de> Deserializer<'de> for Parser<'de> {
 
                         let mut num = String::new();
 
-                        while chars.peek().map_or(false, char::is_ascii_digit) {
+                        while chars.peek().is_some_and(char::is_ascii_digit) {
                             num.push(chars.next().unwrap());
                         }
 
