@@ -12,7 +12,7 @@ resolver = "2"
 
 [dependencies]
 serde = "1.0.152"
-thiserror = "1.0.38"
+thiserror = "2"
 
 [dev-dependencies]
 serde = { version = "1.0.152", features = ["derive"] }
