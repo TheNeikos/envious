@@ -39,7 +39,7 @@ export staircase_orientation=Left
 it will parse it from the environment and give you a Rust struct you can use in
 your application.
 
-> _Note:_ The environment variables **are** case sensitive by default! This can be modified using the [`Config::case_sensitive`] method.
+> _Note:_ The environment variables **are** case insensitive by default! This can be modified using the [`Config::case_sensitive`] method.
 
 `envious` also supports the ability to only take in prefixed environment variables via the [`Config::with_prefix`] method. This will strip it before processing them further.
 
